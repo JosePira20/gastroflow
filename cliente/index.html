@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GastroFlow | Experiencia de Mesa</title>
+    <link rel="stylesheet" href="cliente.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header de Mesa -->
+        <header class="header-mesa">
+            <span class="brand-logo">GASTROFLOW</span>
+            <span id="indicador-mesa" class="badge-mesa">MESA 01</span>
+        </header>
+
+        <!-- SECCIÓN 1: Estado del Pedido en Tiempo Real (Aparece arriba de la carta cuando hay orden) -->
+        <section id="vista-pedido" class="hidden">
+            <div class="pedido-header-bar">
+                <div>
+                    <h2 class="section-subtitle">ESTADO DE SU ORDEN EN VIVO</h2>
+                    <div id="eta-global" class="eta-text">CALCULANDO TIEMPO ESTIMADO...</div>
+                </div>
+                <span id="badge-estado-general" class="status-pill pill-proceso">EN PROCESO</span>
+            </div>
+            <div id="lista-estado-platos" class="order-items-grid"></div>
+        </section>
+
+        <!-- SECCIÓN 2: Carta Gourmet (Siempre visible para consultar platos) -->
+        <section id="vista-menu">
+            <div class="menu-section-header">
+                <h2 class="section-subtitle">CARTA DEGUSTACIÓN</h2>
+            </div>
+            <div id="contenedor-menu" class="menu-grid"></div>
+        </section>
+    </div>
+
+    <!-- Modal Ficha Técnica Split-Screen -->
+    <div id="modal-ficha" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-visual">
+                <img id="modal-img" src="" alt="Plato">
+            </div>
+            <div class="modal-details">
+                <div>
+                    <div class="spec-header">
+                        <div id="modal-num" class="spec-category">PLATO #01</div>
+                        <h2 id="modal-titulo" class="spec-title">Nombre del Plato</h2>
+                    </div>
+                    <table class="spec-table">
+                        <tr class="spec-row">
+                            <td class="spec-label">Descripción</td>
+                            <td id="modal-desc" class="spec-value"></td>
+                        </tr>
+                        <tr class="spec-row">
+                            <td class="spec-label">Alérgenos</td>
+                            <td id="modal-alergenos" class="spec-value"></td>
+                        </tr>
+                        <tr class="spec-row">
+                            <td class="spec-label">Tiempo Base</td>
+                            <td id="modal-tiempo" class="spec-value"></td>
+                        </tr>
+                        <tr class="spec-row">
+                            <td class="spec-label">Complejidad</td>
+                            <td id="modal-complejidad" class="spec-value"></td>
+                        </tr>
+                    </table>
+                </div>
+                <button class="btn-close-text" onclick="cerrarModal()">Cerrar Ficha</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/MockData.js"></script>
+    <script src="cliente.js"></script>
+</body>
+</html>
