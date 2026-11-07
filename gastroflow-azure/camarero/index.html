@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GastroFlow | Consola de Camarero</title>
+    <link rel="stylesheet" href="camarero.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="main-header">
+            <div>
+                <span class="brand-title">GASTROFLOW</span>
+                <span class="role-badge">PANEL CAMARERO</span>
+            </div>
+            <div class="user-info">
+                <span id="user-display">Carlos</span>
+                <button onclick="cerrarSesionPersonal()" class="btn-logout">Salir</button>
+            </div>
+        </header>
+
+        <!-- Control de Sala -->
+        <section class="section-mesas">
+            <h2 class="section-title">CONTROL DE SALA · 5 MESAS</h2>
+            <div id="grid-mesas" class="mesas-grid"></div>
+        </section>
+
+        <!-- Modal Gestor de Comanda -->
+        <div id="modal-comanda" class="modal-overlay hidden">
+            <div class="modal-card">
+                <header class="modal-header">
+                    <div>
+                        <span class="modal-subtitle" id="modal-mesa-subtitle">MESA 01</span>
+                        <h2 class="modal-title">Toma de Comanda Rápida</h2>
+                    </div>
+                    <button class="btn-close" onclick="cerrarModalComanda()">&times;</button>
+                </header>
+
+                <div class="modal-body">
+                    <!-- Columna Izquierda: Platos Registrados en la Mesa -->
+                    <div class="order-summary-col">
+                        <h3>Platos en Comanda</h3>
+                        <div id="lista-platos-activos" class="active-items-list">
+                            <p class="empty-state">No hay platos en esta mesa.</p>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Selección Rápida por Número -->
+                    <div class="add-item-col">
+                        <h3>Agregar Plato por Número</h3>
+                        
+                        <!-- Botonera Rápida de Números (#01 a #09) -->
+                        <div class="quick-numbers-label">Toca un número de plato:</div>
+                        <div id="grid-numeros-rapidos" class="quick-numbers-grid"></div>
+
+                        <!-- Selector Enumerado Tradicional -->
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label>O selecciona de la lista:</label>
+                            <select id="select-plato"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Especificación / Nota (Opcional):</label>
+                            <input type="text" id="input-notas" placeholder="Ej: Sin sal / Término medio / Arroz suave">
+                        </div>
+
+                        <button onclick="agregarPlatoAComanda()" class="btn-add-item">+ Agregar a Comanda</button>
+                    </div>
+                </div>
+
+                <footer class="modal-footer">
+                    <button onclick="liberarMesaActual()" class="btn-danger">Liberar mesa</button>
+                    <button onclick="guardarYEnviarComanda()" class="btn-primary">Confirmar el estado del pedido</button>
+                </footer>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/MockData.js"></script>
+    <script src="camarero.js"></script>
+</body>
+</html>
