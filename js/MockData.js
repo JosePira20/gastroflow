@@ -144,6 +144,8 @@ const canalGastroFlow = typeof BroadcastChannel !== 'undefined' ? new BroadcastC
 
 var menuGlobal = [];
 var usuariosSistema = [];
+var ultimaVersionNube = 0;
+var bloqueandoEcoNube = false;
 
 if (!localStorage.getItem('gastroflow_menu_db')) {
     localStorage.setItem('gastroflow_menu_db', JSON.stringify(MENU_SEMILLA));
@@ -161,6 +163,65 @@ if (!localStorage.getItem('gastroflow_sesiones_log')) {
     localStorage.setItem('gastroflow_sesiones_log', JSON.stringify([]));
 }
 
+// =========================================================================
+// COMUNICACIÓN CON EL SERVIDOR GLOBAL EN AZURE (/api/sync y /api/state)
+// =========================================================================
+async function enviarColeccionANube(coleccion, datos) {
+    if (bloqueandoEcoNube) return;
+    try {
+        const res = await fetch('/api/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ coleccion, datos })
+        });
+        if (res.ok) {
+            const info = await res.json();
+            if (info && info.version) {
+                ultimaVersionNube = info.version;
+            }
+        }
+    } catch (e) {
+        // Funciona en modo local si no hay servidor activo
+    }
+}
+
+async function sincronizarDesdeServidorAzure() {
+    try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        if (!res.ok) return;
+        const estadoRemoto = await res.json();
+
+        // Si el servidor en Azure está recién iniciado, lo inicializamos con los datos actuales
+        if (!estadoRemoto.menu || !estadoRemoto.usuarios) {
+            await enviarColeccionANube('menu', obtenerMenuDB());
+            await enviarColeccionANube('usuarios', obtenerUsuariosDB());
+            await enviarColeccionANube('pedidos', obtenerPedidos());
+            await enviarColeccionANube('historial', obtenerHistorialDB());
+            await enviarColeccionANube('sesiones', obtenerLogSesiones());
+            return;
+        }
+
+        if (estadoRemoto.version && estadoRemoto.version !== ultimaVersionNube) {
+            ultimaVersionNube = estadoRemoto.version;
+            bloqueandoEcoNube = true;
+
+            if (estadoRemoto.menu) localStorage.setItem('gastroflow_menu_db', JSON.stringify(estadoRemoto.menu));
+            if (estadoRemoto.usuarios) localStorage.setItem('gastroflow_usuarios_db', JSON.stringify(estadoRemoto.usuarios));
+            if (estadoRemoto.pedidos) localStorage.setItem('gastroflow_pedidos', JSON.stringify(estadoRemoto.pedidos));
+            if (estadoRemoto.historial) localStorage.setItem('gastroflow_historial_db', JSON.stringify(estadoRemoto.historial));
+            if (estadoRemoto.sesiones) localStorage.setItem('gastroflow_sesiones_log', JSON.stringify(estadoRemoto.sesiones));
+
+            menuGlobal = obtenerMenuDB();
+            usuariosSistema = obtenerUsuariosDB();
+
+            notificarCambioGlobal('SYNC_CLOUD');
+            bloqueandoEcoNube = false;
+        }
+    } catch (e) {
+        // Modo offline local
+    }
+}
+
 function notificarCambioGlobal(tipo = 'ACTUALIZACION_GENERAL') {
     window.dispatchEvent(new Event('storage'));
     if (canalGastroFlow) {
@@ -168,6 +229,9 @@ function notificarCambioGlobal(tipo = 'ACTUALIZACION_GENERAL') {
     }
 }
 
+// =========================================================================
+// GESTIÓN DE MENÚ
+// =========================================================================
 function obtenerMenuDB() {
     try {
         const data = JSON.parse(localStorage.getItem('gastroflow_menu_db'));
@@ -182,12 +246,16 @@ function guardarMenuDB(nuevoMenu) {
     menuGlobal = nuevoMenu;
     localStorage.setItem('gastroflow_menu_db', JSON.stringify(nuevoMenu));
     notificarCambioGlobal('ACTUALIZACION_MENU');
+    enviarColeccionANube('menu', nuevoMenu);
 }
 
 function restaurarMenuOriginalDB() {
     guardarMenuDB(MENU_SEMILLA);
 }
 
+// =========================================================================
+// GESTIÓN DE USUARIOS Y BITÁCORA DE SESIONES
+// =========================================================================
 function obtenerUsuariosDB() {
     try {
         const data = JSON.parse(localStorage.getItem('gastroflow_usuarios_db'));
@@ -202,6 +270,7 @@ function guardarUsuariosDB(nuevosUsuarios) {
     usuariosSistema = nuevosUsuarios;
     localStorage.setItem('gastroflow_usuarios_db', JSON.stringify(nuevosUsuarios));
     notificarCambioGlobal('ACTUALIZACION_USUARIOS');
+    enviarColeccionANube('usuarios', nuevosUsuarios);
 }
 
 function obtenerLogSesiones() {
@@ -221,9 +290,14 @@ function registrarEventoSesion(nombre, rol, accion) {
         accion,
         fechaHora: new Date().toLocaleString('es-CO')
     });
-    localStorage.setItem('gastroflow_sesiones_log', JSON.stringify(logs.slice(0, 100)));
+    const logsRecortados = logs.slice(0, 100);
+    localStorage.setItem('gastroflow_sesiones_log', JSON.stringify(logsRecortados));
+    enviarColeccionANube('sesiones', logsRecortados);
 }
 
+// =========================================================================
+// HISTORIAL DE PEDIDOS Y RENDIMIENTO DE CHEFS
+// =========================================================================
 function obtenerHistorialDB() {
     try {
         return JSON.parse(localStorage.getItem('gastroflow_historial_db')) || [];
@@ -234,6 +308,18 @@ function obtenerHistorialDB() {
 
 function registrarPlatoEnHistorial(datosRegistro) {
     const historial = obtenerHistorialDB();
+
+    if (datosRegistro.uid_instancia) {
+        const idxExistente = historial.findIndex(h => h.uid_instancia === datosRegistro.uid_instancia);
+        if (idxExistente !== -1) {
+            historial[idxExistente] = { ...historial[idxExistente], ...datosRegistro };
+            localStorage.setItem('gastroflow_historial_db', JSON.stringify(historial));
+            notificarCambioGlobal('ACTUALIZACION_HISTORIAL');
+            enviarColeccionANube('historial', historial);
+            return;
+        }
+    }
+
     historial.unshift({
         id_registro: Date.now() + Math.floor(Math.random() * 1000),
         fechaHora: new Date().toLocaleString('es-CO'),
@@ -241,13 +327,18 @@ function registrarPlatoEnHistorial(datosRegistro) {
     });
     localStorage.setItem('gastroflow_historial_db', JSON.stringify(historial));
     notificarCambioGlobal('ACTUALIZACION_HISTORIAL');
+    enviarColeccionANube('historial', historial);
 }
 
 function limpiarHistorialDB() {
     localStorage.setItem('gastroflow_historial_db', JSON.stringify([]));
     notificarCambioGlobal('ACTUALIZACION_HISTORIAL');
+    enviarColeccionANube('historial', []);
 }
 
+// =========================================================================
+// PEDIDOS EN MESAS + ARCHIVO AUTOMÁTICO AL LIBERAR LA MESA
+// =========================================================================
 function obtenerPedidos() {
     try {
         const data = JSON.parse(localStorage.getItem('gastroflow_pedidos'));
@@ -263,10 +354,55 @@ function obtenerPedidos() {
 function guardarTodosLosPedidos(pedidos) {
     localStorage.setItem('gastroflow_pedidos', JSON.stringify(pedidos));
     notificarCambioGlobal('ACTUALIZACION_PEDIDOS');
+    enviarColeccionANube('pedidos', pedidos);
+}
+
+function archivarMesaEnHistorial(mesaId, pedidoAnterior) {
+    if (!pedidoAnterior || !Array.isArray(pedidoAnterior.platos) || pedidoAnterior.platos.length === 0) return;
+
+    const menu = obtenerMenuDB();
+    const usuarios = obtenerUsuariosDB();
+    const chefConectado = usuarios.find(u => u.rol === 'cocinero' && u.online) || usuarios.find(u => u.rol === 'cocinero');
+    const ahora = Date.now();
+
+    pedidoAnterior.platos.forEach((plato, idx) => {
+        if (plato.archivado_en_historial) return;
+
+        const platoInfo = menu.find(p => p.id === parseInt(plato.id_plato));
+        const chefNombre = plato.chef_nombre || (chefConectado ? chefConectado.nombre : 'Chef Mateo');
+        const chefNivel = plato.chef_nivel || (chefConectado ? chefConectado.nivel : 'experto');
+        const etaMin = calcularETAChef(plato.id_plato, chefNivel, 1.0);
+
+        const inicioRef = plato.inicio_coccion || plato.timestamp_creacion || pedidoAnterior.id || ahora;
+        const finRef = plato.fin_coccion || ahora;
+        const tiempoRealMin = plato.tiempo_real_guardado || Math.max(1, Math.round((finRef - inicioRef) / FACTOR_TIEMPO_GLOBAL));
+
+        const uid = plato.uid_instancia || `${pedidoAnterior.id || ahora}_${mesaId}_${idx}`;
+        plato.uid_instancia = uid;
+        plato.archivado_en_historial = true;
+
+        registrarPlatoEnHistorial({
+            uid_instancia: uid,
+            mesa: `Mesa 0${mesaId}`,
+            plato: plato.nombre,
+            complejidad: platoInfo ? platoInfo.complejidad : 2,
+            chef: chefNombre,
+            nivelChef: chefNivel,
+            etaMin: etaMin,
+            tiempoRealMin: tiempoRealMin,
+            tuvoAlerta: plato.tuvo_alerta_historica || plato.alerta_sala || false,
+            estadoFinal: 'Servido'
+        });
+    });
 }
 
 function actualizarPedidoMesa(mesaId, pedido) {
     const pedidos = obtenerPedidos();
+
+    if (pedido === null && pedidos[mesaId] && Array.isArray(pedidos[mesaId].platos) && pedidos[mesaId].platos.length > 0) {
+        archivarMesaEnHistorial(mesaId, pedidos[mesaId]);
+    }
+
     pedidos[mesaId] = pedido;
     guardarTodosLosPedidos(pedidos);
 }
@@ -280,6 +416,9 @@ function calcularETAChef(platoId, nivelChef = 'intermedio', rendimiento = 1.0) {
     return Math.round(tiempoBaseMatriz * rendimiento);
 }
 
+// =========================================================================
+// AUTENTICACIÓN Y CIERRE AUTOMÁTICO AL CERRAR PESTAÑA
+// =========================================================================
 function autenticarUsuario(usuario, clave) {
     const lista = obtenerUsuariosDB();
     const index = lista.findIndex(u => u.usuario === usuario && u.clave === clave);
@@ -302,10 +441,16 @@ function obtenerSesionPersonal() {
         const userStr = sessionStorage.getItem('gastroflow_user');
         if (!userStr) return null;
         const sesionLocal = JSON.parse(userStr);
-        const usuarioActualizado = obtenerUsuariosDB().find(u => u.id === sesionLocal.id || u.usuario === sesionLocal.usuario);
-        if (usuarioActualizado) {
-            sessionStorage.setItem('gastroflow_user', JSON.stringify(usuarioActualizado));
-            return usuarioActualizado;
+        const lista = obtenerUsuariosDB();
+        const idx = lista.findIndex(u => u.id === sesionLocal.id || u.usuario === sesionLocal.usuario);
+
+        if (idx !== -1) {
+            if (!lista[idx].online) {
+                lista[idx].online = true;
+                guardarUsuariosDB(lista);
+            }
+            sessionStorage.setItem('gastroflow_user', JSON.stringify(lista[idx]));
+            return lista[idx];
         }
         return sesionLocal;
     } catch (e) {
@@ -314,17 +459,20 @@ function obtenerSesionPersonal() {
 }
 
 function cerrarSesionPersonal() {
-    const sesion = obtenerSesionPersonal();
-    if (sesion) {
-        const lista = obtenerUsuariosDB();
-        const index = lista.findIndex(u => u.id === sesion.id || u.usuario === sesion.usuario);
-        if (index !== -1) {
-            const ahoraStr = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            lista[index].online = false;
-            lista[index].ultimaSalida = ahoraStr;
-            guardarUsuariosDB(lista);
-            registrarEventoSesion(lista[index].nombre, lista[index].rol, 'Cierre de sesión');
-        }
+    const userStr = sessionStorage.getItem('gastroflow_user');
+    if (userStr) {
+        try {
+            const sesion = JSON.parse(userStr);
+            const lista = obtenerUsuariosDB();
+            const index = lista.findIndex(u => u.id === sesion.id || u.usuario === sesion.usuario);
+            if (index !== -1) {
+                const ahoraStr = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                lista[index].online = false;
+                lista[index].ultimaSalida = ahoraStr;
+                guardarUsuariosDB(lista);
+                registrarEventoSesion(lista[index].nombre, lista[index].rol, 'Cierre de sesión');
+            }
+        } catch (e) {}
     }
     sessionStorage.removeItem('gastroflow_user');
     window.location.href = '../index.html';
@@ -338,6 +486,23 @@ function requerirRol(rolEsperado) {
     }
 }
 
+window.addEventListener('beforeunload', () => {
+    const userStr = sessionStorage.getItem('gastroflow_user');
+    if (!userStr) return;
+    try {
+        const sesion = JSON.parse(userStr);
+        const lista = obtenerUsuariosDB();
+        const index = lista.findIndex(u => u.id === sesion.id || u.usuario === sesion.usuario);
+        if (index !== -1 && lista[index].online) {
+            const ahoraStr = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            lista[index].online = false;
+            lista[index].ultimaSalida = ahoraStr;
+            guardarUsuariosDB(lista);
+            registrarEventoSesion(lista[index].nombre, lista[index].rol, 'Cierre de pestaña / sesión');
+        }
+    } catch (e) {}
+});
+
 menuGlobal = obtenerMenuDB();
 usuariosSistema = obtenerUsuariosDB();
 
@@ -345,3 +510,7 @@ window.addEventListener('storage', () => {
     menuGlobal = obtenerMenuDB();
     usuariosSistema = obtenerUsuariosDB();
 });
+
+// Iniciar sincronización global con Azure cada 1.5 segundos
+sincronizarDesdeServidorAzure();
+setInterval(sincronizarDesdeServidorAzure, 1500);
