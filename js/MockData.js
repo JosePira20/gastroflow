@@ -1,6 +1,6 @@
 // js/MockData.js
 
-const MODO_DEMO_GLOBAL = true;
+const MODO_DEMO_GLOBAL = false;
 const FACTOR_TIEMPO_GLOBAL = MODO_DEMO_GLOBAL ? 1000 : 60000;
 
 const MENU_SEMILLA = [
