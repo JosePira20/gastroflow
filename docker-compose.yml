@@ -1,0 +1,21 @@
+services:
+  postgres_gastroflow:
+    image: postgres:16-alpine
+    container_name: gastroflow_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin_gastro
+      POSTGRES_PASSWORD: password1234
+      POSTGRES_DB: gastroflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_gastroflow:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin_gastro -d gastroflow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata_gastroflow:

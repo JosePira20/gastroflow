@@ -7,361 +7,328 @@
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-    <div class="admin-container">
-        <!-- BARRA SUPERIOR CON CONMUTADOR DE LAS 2 INTERFACES -->
-        <header class="admin-header">
-            <div class="brand-group">
-                <span class="brand-title">GASTROFLOW ADMIN</span>
-                <div class="view-switcher">
-                    <button id="btn-vista-live" class="switch-btn active" onclick="cambiarInterfazAdmin('live')">
-                        1. OPERACION EN TIEMPO REAL
-                    </button>
-                    <button id="btn-vista-analytics" class="switch-btn" onclick="cambiarInterfazAdmin('analytics')">
-                        2. ANALITICA, TIEMPOS & PERSONAL
-                    </button>
-                </div>
-            </div>
-            <div class="header-actions">
-                <span id="admin-user-display" class="user-name">Administración</span>
-                <button onclick="cerrarSesionPersonal()" class="btn-logout">Cerrar Sesión</button>
-            </div>
-        </header>
+    <!-- Barra Superior -->
+    <header class="admin-topbar">
+        <div class="topbar-left">
+            <span class="brand-logo">GASTROFLOW</span>
+            <span class="role-badge">PANEL ADMINISTRATIVO</span>
+        </div>
 
-        <!-- ===================================================================
-             INTERFAZ 1: OPERACIÓN EN TIEMPO REAL (MESAS, ÓRDENES, ALERTAS, CARTA)
-             =================================================================== -->
-        <main id="vista-live">
-            <div class="live-top-grid">
-                <!-- CONTROL DE MESAS Y ÓRDENES (COMO EL CAMARERO PERO CON PODER TOTAL) -->
-                <section class="panel-section">
-                    <div class="panel-header">
-                        <div>
-                            <h2>CONTROL DE SALA Y MODIFICACION DE ORDENES (5 MESAS)</h2>
-                            <p class="panel-subtitle">Haz clic en cualquier mesa para agregar platos, editar, cancelar pedidos o liberar la mesa.</p>
-                        </div>
-                    </div>
-                    <div id="admin-grid-mesas" class="mesas-mini-grid"></div>
-                </section>
+        <!-- Conmutador de las 2 Interfaces -->
+        <nav class="view-switcher">
+            <button id="btn-tab-operacion" class="tab-btn active" onclick="cambiarVistaAdmin('operacion')">
+                1. Operación en Tiempo Real
+            </button>
+            <button id="btn-tab-analitica" class="tab-btn" onclick="cambiarVistaAdmin('analitica')">
+                2. Analítica, Tiempos &amp; Personal
+            </button>
+        </nav>
 
-                <!-- PERSONAL CONECTADO EN VIVO (INDICADOR VERDE) -->
-                <section class="panel-section">
-                    <div class="panel-header">
-                        <div>
-                            <h2>PERSONAL EN TURNO (EN VIVO)</h2>
-                            <p class="panel-subtitle">Estado de conexión actual en el sistema.</p>
-                        </div>
-                    </div>
-                    <div id="lista-personal-online" class="online-list"></div>
-                </section>
-            </div>
+        <div class="topbar-right">
+            <span id="admin-user-label" class="user-name">Administración</span>
+            <button class="btn-logout" onclick="cerrarSesionPersonal()">Cerrar Sesión</button>
+        </div>
+    </header>
 
-            <!-- MONITOR DE ALERTAS ACTIVAS EN COCINA (CON BOTÓN QUITAR ALERTA) -->
-            <section class="panel-section alert-monitor-section">
+    <main class="admin-container">
+
+        <!-- =========================================================================
+             INTERFAZ 1: OPERACIÓN EN TIEMPO REAL (MESAS, ALERTAS, CARTA Y TURNOS)
+             ========================================================================= -->
+        <section id="vista-operacion" class="admin-view active">
+            
+            <!-- Monitor de Alertas Rojas Activas -->
+            <div class="panel-block alert-monitor-block">
                 <div class="panel-header">
                     <div>
-                        <h2>MONITOR DE ALERTAS DE COCINA EN TIEMPO REAL</h2>
-                        <p class="panel-subtitle">Visualiza quién activó una alerta, en qué pedido y desactívala directamente para reanudar el temporizador.</p>
+                        <h2 class="panel-title">MONITOR DE ALERTAS EN COCINA Y SALA</h2>
+                        <p class="panel-sub">Desactiva o interviene incidencias activas reportadas por los chefs en tiempo real.</p>
                     </div>
-                    <span id="badge-total-alertas" class="badge-counter">0 ALERTAS</span>
+                    <span id="contador-alertas-vivas" class="badge-count">0 ACTIVAS</span>
                 </div>
-                <div id="contenedor-alertas-live" class="alertas-live-grid"></div>
-            </section>
+                <div id="contenedor-alertas-vivas" class="alerts-live-grid"></div>
+            </div>
 
-            <!-- GESTIÓN DE CARTA Y PLATOS (HABILITAR / INHABILITAR / AGREGAR / ELIMINAR) -->
-            <section class="panel-section">
-                <div class="panel-header">
-                    <div>
-                        <h2>GESTION DE PRODUCTOS Y DISPONIBILIDAD DE CARTA</h2>
-                        <p class="panel-subtitle">Habilita o inhabilita platos en tiempo real, edita sus datos o agrega nuevas recetas.</p>
-                    </div>
-                    <div class="btn-group">
-                        <button onclick="restaurarDatosFabrica()" class="btn-outline-warning">Restaurar Carta Original</button>
-                        <button onclick="abrirModalPlato()" class="btn-primary">+ Agregar Nuevo Plato</button>
-                    </div>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>IMG</th>
-                                <th>PLATO / ALERGENOS</th>
-                                <th>TIEMPO BASE</th>
-                                <th>COMPLEJIDAD</th>
-                                <th>DISPONIBILIDAD</th>
-                                <th>ACCIONES</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-menu-body"></tbody>
-                    </table>
-                </div>
-            </section>
-        </main>
-
-        <!-- ===================================================================
-             INTERFAZ 2: ANALÍTICA, RENDIMIENTO DE CHEFS Y PERSONAL
-             =================================================================== -->
-        <main id="vista-analytics" class="hidden">
-            <!-- KPIs DOCUMENTALES -->
-            <section class="kpi-grid">
-                <div class="kpi-card">
-                    <span class="kpi-label">TOTAL PEDIDOS REGISTRADOS</span>
-                    <span class="kpi-value" id="kpi-hist-total">0</span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">TIEMPO PROMEDIO DE ENTREGA</span>
-                    <span class="kpi-value" id="kpi-hist-promedio">0 min</span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">CUMPLIMIENTO DE TIEMPO (ETA)</span>
-                    <span class="kpi-value kpi-success" id="kpi-hist-eficiencia">100%</span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">INCIDENCIAS / CANCELACIONES</span>
-                    <span class="kpi-value kpi-danger" id="kpi-hist-incidencias">0</span>
-                </div>
-            </section>
-
-            <div class="analytics-grid">
-                <!-- GESTIÓN DE EMPLEADOS Y CAMBIO DE ESTATUS DE CHEFS -->
-                <section class="panel-section">
+            <!-- Control e Intervención de las 5 Mesas + Editor de Comandas -->
+            <div class="operacion-split-grid">
+                <div class="panel-block">
                     <div class="panel-header">
                         <div>
-                            <h2>GESTION DE PERSONAL Y ESTATUS DE CHEFS</h2>
-                            <p class="panel-subtitle">Modifica nombres, roles y cambia el nivel del chef (Principiante, Intermedio, Experto) para el cálculo automático de tiempos.</p>
+                            <h2 class="panel-title">ESTADO E INTERVENCIÓN DE MESAS (1 - 5)</h2>
+                            <p class="panel-sub">Selecciona cualquier mesa para agregar platos, forzar entregas, editar notas o liberarla.</p>
                         </div>
-                        <button onclick="abrirModalEmpleado()" class="btn-primary">+ Nuevo Empleado</button>
+                    </div>
+                    <div id="grid-mesas-admin" class="mesas-admin-grid"></div>
+                </div>
+
+                <!-- Panel Lateral de Intervención de Mesa Seleccionada -->
+                <div class="panel-block">
+                    <div class="panel-header">
+                        <div>
+                            <h2 id="titulo-mesa-seleccionada" class="panel-title">SELECCIONA UNA MESA</h2>
+                            <p id="subtitulo-mesa-seleccionada" class="panel-sub">Haz clic en una tarjeta de mesa a la izquierda para gestionar su comanda.</p>
+                        </div>
+                        <button id="btn-liberar-mesa-admin" class="btn-danger btn-sm hidden" onclick="liberarMesaDesdeAdmin()">
+                            Vaciar / Liberar Mesa
+                        </button>
+                    </div>
+
+                    <div id="editor-comanda-admin" class="hidden">
+                        <div class="quick-add-box">
+                            <div class="form-row">
+                                <select id="select-plato-admin" class="admin-input"></select>
+                                <input type="text" id="input-nota-admin" class="admin-input" placeholder="Nota o restricción (ej. Sin sal, Término 3/4)">
+                                <button class="btn-primary" onclick="agregarPlatoAMesaAdmin()">+ Agregar a Mesa</button>
+                            </div>
+                        </div>
+
+                        <div id="lista-platos-mesa-admin" class="comanda-items-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Personal Conectado en Turno + Gestión CRUD de la Carta -->
+            <div class="operacion-bottom-grid">
+                <!-- Monitor de Personal en Turno -->
+                <div class="panel-block">
+                    <div class="panel-header">
+                        <div>
+                            <h2 class="panel-title">PERSONAL EN TURNO (EN VIVO)</h2>
+                            <p class="panel-sub">Estado de conexión en tiempo real de camareros, chefs y administración.</p>
+                        </div>
+                    </div>
+                    <div id="lista-personal-online" class="staff-online-list"></div>
+                </div>
+
+                <!-- Gestión CRUD de Carta y Switch de Disponibilidad -->
+                <div class="panel-block">
+                    <div class="panel-header">
+                        <div>
+                            <h2 class="panel-title">GESTIÓN DE CARTA Y DISPONIBILIDAD</h2>
+                            <p class="panel-sub">Habilita/inhabilita platos al instante o agrega nuevas recetas al menú.</p>
+                        </div>
+                        <div class="header-actions">
+                            <button class="btn-secondary btn-sm" onclick="restaurarCartaOriginalConfirm()">Restaurar Carta</button>
+                            <button class="btn-primary btn-sm" onclick="abrirModalPlato()">+ Nuevo Plato</button>
+                        </div>
+                    </div>
+                    <div id="lista-menu-admin" class="menu-admin-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =========================================================================
+             INTERFAZ 2: ANALÍTICA, TIEMPOS ANOVA, RENDIMIENTO DE CHEFS E HISTORIAL
+             ========================================================================= -->
+        <section id="vista-analitica" class="admin-view hidden">
+            
+            <!-- Tarjetas KPI Superiores -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <span class="kpi-label">TOTAL PLATOS DESPACHADOS</span>
+                    <div id="kpi-total-pedidos" class="kpi-value">0</div>
+                    <span class="kpi-sub">Registrados en historial</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">TIEMPO PROMEDIO REAL</span>
+                    <div id="kpi-tiempo-promedio" class="kpi-value">0 min</div>
+                    <span id="kpi-comparativa-eta" class="kpi-sub">vs. ETA estimado</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">CUMPLIMIENTO DE ETA (ANOVA)</span>
+                    <div id="kpi-eficiencia" class="kpi-value">100%</div>
+                    <span class="kpi-sub">Entregas dentro del margen</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">CALIFICACIÓN PROMEDIO CLIENTES</span>
+                    <div id="kpi-calificacion-media" class="kpi-value">★ 5.0</div>
+                    <span id="kpi-total-resenas" class="kpi-sub">Sin reseñas aún</span>
+                </div>
+            </div>
+
+            <!-- Rendimiento por Chef + Gestión CRUD de Personal y Estatus ANOVA -->
+            <div class="analitica-split-grid">
+                <!-- Tabla de Rendimiento por Chef -->
+                <div class="panel-block">
+                    <div class="panel-header">
+                        <div>
+                            <h2 class="panel-title">RENDIMIENTO ESTADÍSTICO POR CHEF (MODELO ANOVA)</h2>
+                            <p class="panel-sub">Comparativa entre el tiempo estimado (ETA según nivel y complejidad) y el tiempo real en cocina.</p>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="admin-table">
                             <thead>
                                 <tr>
-                                    <th>ESTADO</th>
-                                    <th>NOMBRE / USUARIO</th>
-                                    <th>ROL</th>
-                                    <th>ESTATUS CHEF (ANOVA)</th>
-                                    <th>ENTRADA / SALIDA</th>
-                                    <th>ACCIONES</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-empleados-body"></tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- RENDIMIENTO ESTADÍSTICO POR CHEF -->
-                <section class="panel-section">
-                    <div class="panel-header">
-                        <div>
-                            <h2>RENDIMIENTO Y CONCLUSIONES POR CHEF</h2>
-                            <p class="panel-subtitle">Comparativa automática entre el tiempo estimado por el software y el tiempo real de entrega.</p>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="admin-table">
-                            <thead>
-                                <tr>
-                                    <th>CHEF</th>
-                                    <th>ESTATUS</th>
-                                    <th>PLATOS SERVIDOS</th>
-                                    <th>PROM. ESTIMADO</th>
-                                    <th>PROM. REAL</th>
-                                    <th>ALERTAS</th>
+                                    <th>Chef</th>
+                                    <th>Estatus ANOVA</th>
+                                    <th>Platos</th>
+                                    <th>ETA Prom.</th>
+                                    <th>Real Prom.</th>
+                                    <th>Alertas</th>
+                                    <th>Eficiencia</th>
                                 </tr>
                             </thead>
                             <tbody id="tabla-rendimiento-chefs"></tbody>
                         </table>
                     </div>
-                </section>
+                </div>
+
+                <!-- Gestión CRUD de Personal y Cambio de Nivel ANOVA -->
+                <div class="panel-block">
+                    <div class="panel-header">
+                        <div>
+                            <h2 class="panel-title">GESTIÓN DE PERSONAL Y NIVELES DE CHEF</h2>
+                            <p class="panel-sub">Cambia el nivel del chef (Principiante, Intermedio, Experto) para recalibrar el ETA.</p>
+                        </div>
+                        <button class="btn-primary btn-sm" onclick="abrirModalUsuario()">+ Nuevo Empleado</button>
+                    </div>
+                    <div id="lista-usuarios-crud" class="users-crud-list"></div>
+                </div>
             </div>
 
-            <!-- HISTORIAL DOCUMENTADO DE PEDIDOS Y TIEMPOS DE ENTREGA -->
-            <section class="panel-section">
+            <!-- Historial Completo de Pedidos con Calificación (★) y Correo del Cliente -->
+            <div class="panel-block">
                 <div class="panel-header">
                     <div>
-                        <h2>HISTORIAL DOCUMENTADO DE PLATOS Y TIEMPOS DE ENTREGA</h2>
-                        <p class="panel-subtitle">Registro completo de órdenes despachadas y canceladas para análisis estadístico.</p>
+                        <h2 class="panel-title">HISTORIAL DOCUMENTADO DE PEDIDOS Y CALIFICACIONES</h2>
+                        <p class="panel-sub">Registro histórico con tiempos ANOVA, incidencias, calificación en estrellas y correo del cliente.</p>
                     </div>
-                    <div class="btn-group">
-                        <button onclick="simularDatosANOVA()" class="btn-secondary">Generar Datos de Prueba (ANOVA)</button>
-                        <button onclick="exportarHistorialCSV()" class="btn-primary">Exportar a Excel (.CSV)</button>
-                        <button onclick="borrarHistorialConfirmado()" class="btn-action-del">Limpiar Historial</button>
+                    <div class="header-actions">
+                        <button class="btn-secondary btn-sm" onclick="simularMuestraANOVA()">+ Simular Muestra ANOVA</button>
+                        <button class="btn-primary btn-sm" onclick="exportarHistorialCSV()">Exportar Excel (.CSV)</button>
+                        <button class="btn-danger btn-sm" onclick="limpiarHistorialConfirm()">Limpiar Historial</button>
                     </div>
                 </div>
                 <div class="table-responsive">
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th>FECHA / HORA</th>
-                                <th>MESA</th>
-                                <th>PLATO</th>
-                                <th>COMPLEJIDAD</th>
-                                <th>CHEF RESPONSABLE</th>
-                                <th>TIEMPO ESTIMADO</th>
-                                <th>TIEMPO REAL</th>
-                                <th>DIFERENCIA</th>
-                                <th>ESTADO FINAL</th>
+                                <th>Fecha / Hora</th>
+                                <th>Mesa</th>
+                                <th>Plato</th>
+                                <th>Complejidad</th>
+                                <th>Chef Asignado</th>
+                                <th>ETA (Est.)</th>
+                                <th>Tiempo Real</th>
+                                <th>Alerta</th>
+                                <th>Estado</th>
+                                <th>Calificación</th>
+                                <th>Correo Cliente</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-historial-body"></tbody>
                     </table>
                 </div>
-            </section>
+            </div>
 
-            <!-- BITÁCORA DE INICIOS Y CIERRES DE SESIÓN -->
-            <section class="panel-section">
+            <!-- Bitácora de Sesiones -->
+            <div class="panel-block">
                 <div class="panel-header">
                     <div>
-                        <h2>BITACORA DE INICIOS Y CIERRES DE SESION</h2>
-                        <p class="panel-subtitle">Registro cronológico de conexiones del personal.</p>
+                        <h2 class="panel-title">BITÁCORA DE CONEXIONES Y TURNOS</h2>
+                        <p class="panel-sub">Auditoría de inicios y cierres de sesión del personal.</p>
                     </div>
                 </div>
                 <div class="table-responsive">
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th>FECHA Y HORA</th>
-                                <th>EMPLEADO</th>
-                                <th>ROL</th>
-                                <th>EVENTO</th>
+                                <th>Fecha y Hora</th>
+                                <th>Empleado</th>
+                                <th>Rol</th>
+                                <th>Evento</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-sesiones-body"></tbody>
                     </table>
                 </div>
-            </section>
-        </main>
-    </div>
-
-    <!-- ===================================================================
-         MODAL 1: GESTIONAR ORDEN DE MESA (IGUAL QUE CAMARERO + QUITAR ALERTA)
-         =================================================================== -->
-    <div id="modal-orden-admin" class="modal-overlay hidden">
-        <div class="modal-card modal-large">
-            <div class="modal-header">
-                <h2 id="modal-orden-titulo">GESTIONAR ORDEN - MESA 01</h2>
-                <button onclick="cerrarModalOrdenAdmin()" class="btn-close">&times;</button>
             </div>
 
-            <div class="orden-admin-Section">
-                <label class="section-label">AGREGAR PLATO A LA ORDEN</label>
-                <div class="add-plato-bar">
-                    <select id="admin-select-plato"></select>
-                    <input type="text" id="admin-input-notas" placeholder="Notas o especificaciones (ej. Sin sal)">
-                    <button type="button" onclick="adminAgregarPlatoMesa()" class="btn-primary">+ Agregar</button>
+        </section>
+    </main>
+
+    <!-- MODAL CRUD DE PLATO -->
+    <div id="modal-plato" class="admin-modal-overlay hidden">
+        <div class="admin-modal-card">
+            <h3 id="modal-plato-titulo" class="modal-title">Nuevo Plato</h3>
+            <input type="hidden" id="plato-id-edit">
+            <div class="modal-form-grid">
+                <div>
+                    <label class="form-label">Nombre del Plato</label>
+                    <input type="text" id="plato-nombre" class="admin-input" placeholder="Ej. Risotto de Hongos">
+                </div>
+                <div>
+                    <label class="form-label">Tiempo Base (Minutos)</label>
+                    <input type="number" id="plato-tiempo" class="admin-input" min="1" max="120" value="15">
+                </div>
+                <div>
+                    <label class="form-label">Complejidad ANOVA</label>
+                    <select id="plato-complejidad" class="admin-input">
+                        <option value="1">Nivel 1 - Baja (Estándar)</option>
+                        <option value="2">Nivel 2 - Media (Técnica)</option>
+                        <option value="3">Nivel 3 - Alta (Especialidad)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Alérgenos</label>
+                    <input type="text" id="plato-alergenos" class="admin-input" placeholder="Ej. Lácteos, Gluten">
+                </div>
+                <div class="full-col">
+                    <label class="form-label">URL de Fotografía</label>
+                    <input type="text" id="plato-img" class="admin-input" placeholder="https://images.unsplash.com/...">
+                </div>
+                <div class="full-col">
+                    <label class="form-label">Descripción Gastronómica</label>
+                    <textarea id="plato-desc" class="admin-input" rows="3" placeholder="Descripción detallada del plato..."></textarea>
                 </div>
             </div>
-
-            <div class="orden-admin-Section">
-                <label class="section-label">PLATOS ACTUALES EN ESTA MESA</label>
-                <div id="admin-lista-platos-mesa" class="admin-platos-mesa-list"></div>
-            </div>
-
-            <div class="modal-footer split-footer">
-                <button type="button" onclick="adminLiberarMesaCompleta()" class="btn-action-del">Vaciar / Liberar Mesa</button>
-                <button type="button" onclick="cerrarModalOrdenAdmin()" class="btn-secondary">Cerrar Ventana</button>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="cerrarModalPlato()">Cancelar</button>
+                <button class="btn-primary" onclick="guardarPlatoCRUD()">Guardar Plato</button>
             </div>
         </div>
     </div>
 
-    <!-- ===================================================================
-         MODAL 2: CREAR / EDITAR PLATO DE LA CARTA
-         =================================================================== -->
-    <div id="modal-plato" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h2 id="modal-plato-titulo">PLATO DE LA CARTA</h2>
-                <button onclick="cerrarModalPlato()" class="btn-close">&times;</button>
+    <!-- MODAL CRUD DE USUARIO -->
+    <div id="modal-usuario" class="admin-modal-overlay hidden">
+        <div class="admin-modal-card">
+            <h3 id="modal-usuario-titulo" class="modal-title">Nuevo Empleado</h3>
+            <input type="hidden" id="usuario-id-edit">
+            <div class="modal-form-grid">
+                <div>
+                    <label class="form-label">Nombre Completo</label>
+                    <input type="text" id="user-nombre" class="admin-input" placeholder="Ej. Chef Sofía">
+                </div>
+                <div>
+                    <label class="form-label">Usuario (Login)</label>
+                    <input type="text" id="user-login" class="admin-input" placeholder="Ej. sofia">
+                </div>
+                <div>
+                    <label class="form-label">Contraseña</label>
+                    <input type="text" id="user-clave" class="admin-input" placeholder="Ej. 1234">
+                </div>
+                <div>
+                    <label class="form-label">Rol en el Sistema</label>
+                    <select id="user-rol" class="admin-input" onchange="actualizarVisibilidadNivelChef()">
+                        <option value="cocinero">Cocinero (Chef)</option>
+                        <option value="camarero">Camarero (Sala)</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div id="grupo-nivel-chef" class="full-col">
+                    <label class="form-label">Estatus / Nivel de Experiencia del Chef (Modelo ANOVA)</label>
+                    <select id="user-nivel" class="admin-input">
+                        <option value="principiante">Principiante / Novato</option>
+                        <option value="intermedio">Intermedio</option>
+                        <option value="experto">Experto</option>
+                    </select>
+                </div>
             </div>
-            <form id="form-plato" onsubmit="guardarPlatoFormulario(event)">
-                <input type="hidden" id="plato-id">
-                <div class="form-group">
-                    <label>Nombre del Plato</label>
-                    <input type="text" id="plato-nombre" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Tiempo Base (Minutos)</label>
-                        <input type="number" id="plato-tiempo" min="1" max="120" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Complejidad (1, 2 o 3)</label>
-                        <select id="plato-complejidad" required>
-                            <option value="1">1 - Baja (Estándar)</option>
-                            <option value="2">2 - Media (Técnica)</option>
-                            <option value="3">3 - Alta (Especialidad)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Alérgenos</label>
-                    <input type="text" id="plato-alergenos" required>
-                </div>
-                <div class="form-group">
-                    <label>Descripción</label>
-                    <textarea id="plato-descripcion" rows="2" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label>URL de la Imagen</label>
-                    <input type="url" id="plato-img" required>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" onclick="cerrarModalPlato()" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Plato</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ===================================================================
-         MODAL 3: CREAR / EDITAR EMPLEADO
-         =================================================================== -->
-    <div id="modal-empleado" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h2 id="modal-empleado-titulo">DATOS DEL EMPLEADO</h2>
-                <button onclick="cerrarModalEmpleado()" class="btn-close">&times;</button>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="cerrarModalUsuario()">Cancelar</button>
+                <button class="btn-primary" onclick="guardarUsuarioCRUD()">Guardar Empleado</button>
             </div>
-            <form id="form-empleado" onsubmit="guardarEmpleadoFormulario(event)">
-                <input type="hidden" id="emp-id">
-                <div class="form-group">
-                    <label>Nombre Completo</label>
-                    <input type="text" id="emp-nombre" required placeholder="Ej. Chef Sofía">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Usuario de Acceso</label>
-                        <input type="text" id="emp-usuario" required placeholder="Ej. sofia">
-                    </div>
-                    <div class="form-group">
-                        <label>Contraseña</label>
-                        <input type="text" id="emp-clave" required value="1234">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Rol en el Sistema</label>
-                        <select id="emp-rol" onchange="mostrarOcultarNivelChef()" required>
-                            <option value="cocinero">Cocinero / Chef</option>
-                            <option value="camarero">Camarero</option>
-                            <option value="admin">Administrador</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="grupo-nivel-chef">
-                        <label>Estatus del Chef (Nivel ANOVA)</label>
-                        <select id="emp-nivel">
-                            <option value="principiante">Principiante / Novato</option>
-                            <option value="intermedio">Intermedio</option>
-                            <option value="experto">Experto</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" onclick="cerrarModalEmpleado()" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Empleado</button>
-                </div>
-            </form>
         </div>
     </div>
 

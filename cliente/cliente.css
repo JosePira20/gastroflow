@@ -364,3 +364,332 @@ body {
     .modal-details { padding: 20px 16px; }
     .btn-close-text { width: 100%; text-align: center; padding: 12px 0; }
 }
+/* =========================================================================
+   MÓDULO DE CALIFICACIÓN DE PLATOS Y CUPÓN DE DESCUENTO (MAKE + IA)
+   ========================================================================= */
+.review-box {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.review-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #f4f4f6;
+    text-transform: uppercase;
+}
+
+.review-promo-badge {
+    font-size: 0.72rem;
+    background: rgba(234, 179, 8, 0.14);
+    color: #facc15;
+    border: 1px solid rgba(234, 179, 8, 0.35);
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.star-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.star-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #3f3f46;
+    transition: transform 0.15s ease, color 0.15s ease;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.star-btn:hover {
+    transform: scale(1.15);
+}
+
+.star-btn.active {
+    color: #facc15;
+}
+
+.review-inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 640px) {
+    .review-inputs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.review-input {
+    width: 100%;
+    padding: 9px 11px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.83rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.review-input:focus {
+    border-color: #facc15;
+}
+
+.btn-enviar-resena {
+    width: 100%;
+    padding: 9px 14px;
+    background: #eab308;
+    color: #09090b;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.btn-enviar-resena:hover {
+    opacity: 0.9;
+}
+
+.review-done-box {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: #e4e4e7;
+}
+
+.review-done-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-stars-static {
+    color: #facc15;
+}
+
+.review-done-text {
+    margin: 4px 0 0 0;
+    color: #a1a1aa;
+}
+
+.review-coupon-pill {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 10px;
+    background: rgba(234, 179, 8, 0.16);
+    border: 1px dashed #eab308;
+    color: #fde047;
+    font-weight: 700;
+    border-radius: 6px;
+    font-size: 0.78rem;
+}
+
+.review-ai-reply {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-left: 3px solid #eab308;
+    border-radius: 4px;
+    font-style: italic;
+    color: #d4d4d8;
+    font-size: 0.8rem;
+}
+/* =========================================================================
+   DESPLEGABLE DE CALIFICACIÓN DE PLATOS (CLIENTE)
+   ========================================================================= */
+.review-trigger-row {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-toggle-resena {
+    padding: 7px 14px;
+    background: rgba(234, 179, 8, 0.14);
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    color: #facc15;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-toggle-resena:hover {
+    background: rgba(234, 179, 8, 0.24);
+}
+
+.review-box {
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.review-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #f4f4f6;
+    text-transform: uppercase;
+}
+
+.review-promo-badge {
+    font-size: 0.72rem;
+    background: rgba(234, 179, 8, 0.14);
+    color: #facc15;
+    border: 1px solid rgba(234, 179, 8, 0.35);
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.star-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.star-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #3f3f46;
+    transition: transform 0.15s ease, color 0.15s ease;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.star-btn:hover {
+    transform: scale(1.15);
+}
+
+.star-btn.active {
+    color: #facc15;
+}
+
+.review-inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 640px) {
+    .review-inputs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.review-input {
+    width: 100%;
+    padding: 9px 11px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.83rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.review-input:focus {
+    border-color: #facc15;
+}
+
+.review-error-msg {
+    margin-bottom: 10px;
+    padding: 7px 10px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 6px;
+    color: #fca5a5;
+    font-size: 0.78rem;
+}
+
+.btn-enviar-resena {
+    width: 100%;
+    padding: 9px 14px;
+    background: #eab308;
+    color: #09090b;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.btn-enviar-resena:hover {
+    opacity: 0.9;
+}
+
+.review-done-box {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: #e4e4e7;
+}
+
+.review-done-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.review-stars-static {
+    color: #facc15;
+    font-size: 0.95rem;
+}
+
+.review-done-text {
+    margin: 4px 0 0 0;
+    color: #a1a1aa;
+}

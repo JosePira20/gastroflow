@@ -2,280 +2,341 @@ document.addEventListener('DOMContentLoaded', () => {
     requerirRol('admin');
 
     const sesion = obtenerSesionPersonal();
-    if (sesion) {
-        document.getElementById('admin-user-display').textContent = sesion.nombre;
+    const labelAdmin = document.getElementById('admin-user-label');
+    if (sesion && labelAdmin) {
+        labelAdmin.textContent = sesion.nombre;
     }
 
-    let mesaAdminSeleccionada = null;
+    let mesaSeleccionadaAdmin = null;
 
     // =========================================================================
-    // CONMUTADOR ENTRE INTERFAZ 1 (TIEMPO REAL) E INTERFAZ 2 (ANALÍTICA)
+    // CONMUTACIÓN ENTRE LAS 2 INTERFACES DEL ADMINISTRADOR
     // =========================================================================
-    window.cambiarInterfazAdmin = (vista) => {
-        const vLive = document.getElementById('vista-live');
-        const vAnalytics = document.getElementById('vista-analytics');
-        const btnLive = document.getElementById('btn-vista-live');
-        const btnAnalytics = document.getElementById('btn-vista-analytics');
+    window.cambiarVistaAdmin = (vista) => {
+        const vOperacion = document.getElementById('vista-operacion');
+        const vAnalitica = document.getElementById('vista-analitica');
+        const btnOp = document.getElementById('btn-tab-operacion');
+        const btnAn = document.getElementById('btn-tab-analitica');
 
-        if (vista === 'live') {
-            vLive.classList.remove('hidden');
-            vAnalytics.classList.add('hidden');
-            btnLive.classList.add('active');
-            btnAnalytics.classList.remove('active');
+        if (vista === 'operacion') {
+            vOperacion.classList.remove('hidden');
+            vAnalitica.classList.add('hidden');
+            btnOp.classList.add('active');
+            btnAn.classList.remove('active');
         } else {
-            vLive.classList.add('hidden');
-            vAnalytics.classList.remove('hidden');
-            btnLive.classList.remove('active');
-            btnAnalytics.classList.add('active');
+            vOperacion.classList.add('hidden');
+            vAnalitica.classList.remove('hidden');
+            btnOp.classList.remove('active');
+            btnAn.classList.add('active');
         }
-        sincronizarTodoAdmin();
+        renderizarTodoAdmin();
     };
 
     // =========================================================================
-    // INTERFAZ 1: MESAS EN VIVO, MODIFICACIÓN DE ÓRDENES Y MONITOR DE ALERTAS
+    // 1. MONITOR DE ALERTAS EN VIVO (CON BOTÓN QUITAR ALERTA)
     // =========================================================================
-    function renderizarMesasYAlertasLive() {
+    function renderizarMonitorAlertas() {
         const pedidos = obtenerPedidos();
-        const gridMesas = document.getElementById('admin-grid-mesas');
-        const contAlertas = document.getElementById('contenedor-alertas-live');
-        const badgeAlertas = document.getElementById('badge-total-alertas');
+        const contenedor = document.getElementById('contenedor-alertas-vivas');
+        const contador = document.getElementById('contador-alertas-vivas');
+        if (!contenedor || !contador) return;
 
-        let htmlMesas = '';
-        let htmlAlertas = '';
-        let totalAlertas = 0;
-
-        for (let i = 1; i <= 5; i++) {
-            const pMesa = pedidos[i];
-            const platos = (pMesa && Array.isArray(pMesa.platos)) ? pMesa.platos : [];
-            const ocupada = platos.length > 0;
-
-            let tieneAlerta = false;
-            let todosEntregados = ocupada && platos.every(p => p.estado === 'Entregado');
-
-            platos.forEach((p, idx) => {
-                if (p.alerta_sala === true || p.estado === 'Problema Notificado') {
-                    tieneAlerta = true;
-                    totalAlertas++;
-                    htmlAlertas += `
-                        <div class="alerta-live-card">
-                            <div class="alerta-info">
-                                <h4>MESA 0${i} · ${p.nombre}</h4>
-                                <p><strong>Motivo:</strong> ${p.motivo_alerta || 'Demora crítica reportada'}</p>
-                                <div class="alerta-meta">
-                                    Reportado por: <strong>${p.alerta_autor || p.chef_nombre || 'Cocina'}</strong> 
-                                    ${p.alerta_hora ? `a las ${p.alerta_hora}` : ''}
-                                </div>
-                            </div>
-                            <button class="btn-primary" onclick="adminQuitarAlertaDirecta(${i}, ${idx})">
-                                Quitar Alerta
-                            </button>
-                        </div>
-                    `;
-                }
-            });
-
-            let claseEstado = '';
-            let textoEstado = 'LIBRE';
-            if (ocupada) {
-                if (tieneAlerta) { claseEstado = 'alerta'; textoEstado = 'ALERTA ROJA'; }
-                else if (todosEntregados) { claseEstado = 'comiendo'; textoEstado = 'COMIENDO'; }
-                else { claseEstado = 'ocupada'; textoEstado = 'ACTIVA'; }
+        const alertasActivas = [];
+        for (let m = 1; m <= 5; m++) {
+            const ord = pedidos[m];
+            if (ord && Array.isArray(ord.platos)) {
+                ord.platos.forEach((p, idx) => {
+                    if (p.alerta_sala === true || p.estado === 'Problema Notificado') {
+                        alertasActivas.push({
+                            mesaId: m,
+                            indexPlato: idx,
+                            plato: p.nombre,
+                            motivo: p.motivo_alerta || 'Incidencia reportada en cocina',
+                            chef: p.chef_nombre || 'Cocina',
+                            hora: p.hora_alerta || 'En curso'
+                        });
+                    }
+                });
             }
-
-            htmlMesas += `
-                <div class="mesa-admin-card ${claseEstado}" onclick="abrirModalOrdenAdmin(${i})">
-                    <div class="mesa-admin-top">
-                        <span>MESA 0${i}</span>
-                        <span style="font-size:0.75em;">${textoEstado}</span>
-                    </div>
-                    <div class="mesa-admin-sub">
-                        ${ocupada ? `${platos.length} plato(s) en orden` : 'Click para abrir orden'}
-                    </div>
-                </div>
-            `;
         }
 
-        gridMesas.innerHTML = htmlMesas;
-        badgeAlertas.textContent = `${totalAlertas} ALERTA(S)`;
-        contAlertas.innerHTML = htmlAlertas || '<p class="panel-subtitle">No hay alertas activas en este momento. Operación normal.</p>';
+        contador.textContent = `${alertasActivas.length} ACTIVA${alertasActivas.length === 1 ? '' : 'S'}`;
+        contador.className = alertasActivas.length > 0 ? 'badge-count alert-pulse' : 'badge-count';
+
+        if (alertasActivas.length === 0) {
+            contenedor.innerHTML = `<div class="empty-state">Operación sin incidencias activas en este momento.</div>`;
+            return;
+        }
+
+        contenedor.innerHTML = alertasActivas.map(a => `
+            <div class="alert-live-card">
+                <div class="alert-live-info">
+                    <span class="alert-mesa-tag">MESA 0${a.mesaId}</span>
+                    <strong>${a.plato}</strong>
+                    <div class="alert-motivo-text">Motivo: ${a.motivo} · Reportó: ${a.chef}</div>
+                </div>
+                <button class="btn-quitar-alerta" onclick="quitarAlertaDesdeAdmin(${a.mesaId}, ${a.indexPlato})">
+                    Quitar Alerta
+                </button>
+            </div>
+        `).join('');
     }
 
-    // Quitar alerta directamente desde el Admin (igual que el cocinero, despausando el tiempo)
-    window.adminQuitarAlertaDirecta = (mesaId, indexPlato) => {
+    window.quitarAlertaDesdeAdmin = (mesaId, idxPlato) => {
         const pedidos = obtenerPedidos();
-        if (!pedidos[mesaId] || !pedidos[mesaId].platos[indexPlato]) return;
+        if (!pedidos[mesaId] || !pedidos[mesaId].platos[idxPlato]) return;
 
-        const plato = pedidos[mesaId].platos[indexPlato];
-        if (!confirm(`¿Quitar la alerta del plato "${plato.nombre}" (Mesa 0${mesaId}) y reanudar su temporizador?`)) return;
-
+        const plato = pedidos[mesaId].platos[idxPlato];
         const ahora = Date.now();
+
         if (plato.inicio_pausa) {
-            const duracionPausaMs = ahora - plato.inicio_pausa;
-            if (plato.inicio_coccion) plato.inicio_coccion += duracionPausaMs;
-            if (plato.timestamp_creacion) plato.timestamp_creacion += duracionPausaMs;
-            if (plato.limite_extra_ms) plato.limite_extra_ms += duracionPausaMs;
+            const tiempoPausado = Math.max(0, ahora - plato.inicio_pausa);
+            if (plato.inicio_coccion) plato.inicio_coccion += tiempoPausado;
+            if (plato.timestamp_creacion) plato.timestamp_creacion += tiempoPausado;
         }
 
         plato.alerta_sala = false;
         plato.inicio_pausa = null;
         plato.motivo_alerta = null;
-        if (plato.estado === 'Problema Notificado') {
-            plato.estado = plato.inicio_coccion ? 'Cocinando' : 'En preparación';
-        }
+        plato.estado = plato.inicio_coccion ? 'En Preparación' : 'En Cola';
 
         guardarTodosLosPedidos(pedidos);
-        sincronizarTodoAdmin();
-        if (mesaAdminSeleccionada === mesaId) renderizarPlatosModalMesa();
+        renderizarTodoAdmin();
     };
 
-    // Modal para que el Admin edite, agregue o cancele pedidos de una mesa
-    window.abrirModalOrdenAdmin = (mesaId) => {
-        mesaAdminSeleccionada = mesaId;
-        document.getElementById('modal-orden-titulo').textContent = `GESTIONAR ORDEN - MESA 0${mesaId}`;
+    // =========================================================================
+    // 2. INTERVENCIÓN DE MESAS (1 A 5) Y GESTIÓN DE COMANDAS
+    // =========================================================================
+    function renderizarMapaMesasAdmin() {
+        const pedidos = obtenerPedidos();
+        const grid = document.getElementById('grid-mesas-admin');
+        if (!grid) return;
 
-        const select = document.getElementById('admin-select-plato');
+        let html = '';
+        for (let m = 1; m <= 5; m++) {
+            const ord = pedidos[m];
+            const activa = mesaSeleccionadaAdmin === m ? 'selected' : '';
+            let estadoClase = 'mesa-libre';
+            let estadoTexto = 'DISPONIBLE';
+            let detallePlatos = 'Sin orden activa';
+
+            if (ord && Array.isArray(ord.platos) && ord.platos.length > 0) {
+                const total = ord.platos.length;
+                const tieneAlerta = ord.platos.some(p => p.alerta_sala || p.estado === 'Problema Notificado');
+                const tieneServido = ord.platos.some(p => p.estado === 'Servido');
+                const todosEntregados = ord.platos.every(p => p.estado === 'Entregado');
+
+                detallePlatos = `${total} plato${total === 1 ? '' : 's'} en comanda`;
+
+                if (tieneAlerta) {
+                    estadoClase = 'mesa-alerta';
+                    estadoTexto = 'ALERTA EN COCINA';
+                } else if (tieneServido) {
+                    estadoClase = 'mesa-servido';
+                    estadoTexto = 'LISTO PARA ENTREGAR';
+                } else if (todosEntregados) {
+                    estadoClase = 'mesa-comiendo';
+                    estadoTexto = 'COMENSALES EN MESA';
+                } else {
+                    estadoClase = 'mesa-ocupada';
+                    estadoTexto = 'EN PREPARACIÓN';
+                }
+            }
+
+            html += `
+                <div class="mesa-admin-card ${estadoClase} ${activa}" onclick="seleccionarMesaAdmin(${m})">
+                    <div class="mesa-card-top">
+                        <span class="mesa-number">MESA 0${m}</span>
+                        <span class="mesa-status-pill">${estadoTexto}</span>
+                    </div>
+                    <div class="mesa-card-sub">${detallePlatos}</div>
+                </div>
+            `;
+        }
+        grid.innerHTML = html;
+    }
+
+    window.seleccionarMesaAdmin = (mesaId) => {
+        mesaSeleccionadaAdmin = mesaId;
+        renderizarMapaMesasAdmin();
+        renderizarEditorComandaAdmin();
+    };
+
+    function poblarSelectorPlatosAdmin() {
+        const select = document.getElementById('select-plato-admin');
+        if (!select) return;
         const menu = obtenerMenuDB();
-        select.innerHTML = menu.map((p, idx) => {
-            const num = (idx + 1) < 10 ? `0${idx + 1}` : `${idx + 1}`;
-            return `<option value="${p.id}" ${p.activo === false ? 'disabled' : ''}>#${num} - ${p.nombre} ${p.activo === false ? '(INHABILITADO)' : ''}</option>`;
+        const valorPrevio = select.value;
+
+        select.innerHTML = menu.map((p, i) => {
+            const num = (i + 1) < 10 ? `0${i + 1}` : `${i + 1}`;
+            const inactivo = p.activo === false;
+            return `<option value="${p.id}" ${inactivo ? 'disabled' : ''}>#${num} - ${p.nombre} ${inactivo ? '(INHABILITADO)' : ''}</option>`;
         }).join('');
 
-        renderizarPlatosModalMesa();
-        document.getElementById('modal-orden-admin').classList.remove('hidden');
-    };
+        if (valorPrevio) select.value = valorPrevio;
+    }
 
-    window.cerrarModalOrdenAdmin = () => {
-        mesaAdminSeleccionada = null;
-        document.getElementById('modal-orden-admin').classList.add('hidden');
-    };
+    function renderizarEditorComandaAdmin() {
+        const editor = document.getElementById('editor-comanda-admin');
+        const btnLiberar = document.getElementById('btn-liberar-mesa-admin');
+        const titulo = document.getElementById('titulo-mesa-seleccionada');
+        const subtitulo = document.getElementById('subtitulo-mesa-seleccionada');
+        const listaPlatos = document.getElementById('lista-platos-mesa-admin');
 
-    function renderizarPlatosModalMesa() {
-        if (!mesaAdminSeleccionada) return;
-        const pedidos = obtenerPedidos();
-        const contenedor = document.getElementById('admin-lista-platos-mesa');
-        const platos = (pedidos[mesaAdminSeleccionada] && pedidos[mesaAdminSeleccionada].platos) ? pedidos[mesaAdminSeleccionada].platos : [];
-
-        if (platos.length === 0) {
-            contenedor.innerHTML = '<p class="panel-subtitle">Esta mesa no tiene pedidos activos.</p>';
+        if (!mesaSeleccionadaAdmin) {
+            editor.classList.add('hidden');
+            btnLiberar.classList.add('hidden');
             return;
         }
 
-        contenedor.innerHTML = platos.map((item, idx) => {
-            const tieneAlerta = item.alerta_sala === true || item.estado === 'Problema Notificado';
+        editor.classList.remove('hidden');
+        poblarSelectorPlatosAdmin();
+
+        const pedidos = obtenerPedidos();
+        const ord = pedidos[mesaSeleccionadaAdmin];
+        titulo.textContent = `GESTIÓN DE MESA 0${mesaSeleccionadaAdmin}`;
+
+        if (!ord || !Array.isArray(ord.platos) || ord.platos.length === 0) {
+            subtitulo.textContent = 'Mesa libre. Agrega un plato abajo para abrir comanda.';
+            btnLiberar.classList.add('hidden');
+            listaPlatos.innerHTML = `<div class="empty-state">No hay platos cargados en esta mesa.</div>`;
+            return;
+        }
+
+        subtitulo.textContent = `Comanda activa con ${ord.platos.length} plato(s).`;
+        btnLiberar.classList.remove('hidden');
+
+        listaPlatos.innerHTML = ord.platos.map((item, idx) => {
+            const enAlerta = item.alerta_sala || item.estado === 'Problema Notificado';
             return `
-                <div class="admin-plato-row">
-                    <div>
-                        <strong>${item.nombre}</strong> <span class="badge-comp comp-2">${tieneAlerta ? 'ALERTA ACTIVA' : item.estado}</span>
-                        <div style="font-size:0.76em; color:#a1a1aa; margin-top:3px;">
-                            Nota: ${item.notas || 'Sin notas'}
-                        </div>
+                <div class="comanda-admin-item ${enAlerta ? 'item-alerta' : ''}">
+                    <div class="comanda-item-info">
+                        <strong>${item.nombre}</strong>
+                        <span class="item-state-tag">${item.estado || 'En Cola'}</span>
+                        ${item.notas ? `<div class="item-note-text">Nota: ${item.notas}</div>` : ''}
                     </div>
-                    <div class="btn-group">
-                        ${tieneAlerta ? `<button class="btn-primary" onclick="adminQuitarAlertaDirecta(${mesaAdminSeleccionada}, ${idx})">Quitar Alerta</button>` : ''}
-                        <button class="btn-action-edit" onclick="adminEditarNotaPlato(${idx})">Editar Nota</button>
-                        ${item.estado !== 'Entregado' ? `<button class="btn-toggle-on" onclick="adminForzarEstadoPlato(${idx}, 'Entregado')">Marcar Entregado</button>` : ''}
-                        <button class="btn-action-del" onclick="adminEliminarPlatoMesa(${idx})">Cancelar Plato</button>
+                    <div class="comanda-item-actions">
+                        ${item.estado !== 'Entregado' ? `
+                            <button class="btn-success btn-xs" onclick="forzarEntregaPlatoAdmin(${mesaSeleccionadaAdmin}, ${idx})">
+                                Marcar Entregado
+                            </button>
+                        ` : ''}
+                        <button class="btn-secondary btn-xs" onclick="editarNotaPlatoAdmin(${mesaSeleccionadaAdmin}, ${idx})">
+                            Nota
+                        </button>
+                        <button class="btn-danger btn-xs" onclick="eliminarPlatoMesaAdmin(${mesaSeleccionadaAdmin}, ${idx})">
+                            Eliminar
+                        </button>
                     </div>
                 </div>
             `;
         }).join('');
     }
 
-    window.adminAgregarPlatoMesa = () => {
-        if (!mesaAdminSeleccionada) return;
-        const platoId = parseInt(document.getElementById('admin-select-plato').value);
-        const notas = document.getElementById('admin-input-notas').value.trim();
-        const platoObj = obtenerMenuDB().find(p => p.id === platoId);
-        if (!platoObj) return;
+    window.agregarPlatoAMesaAdmin = () => {
+        if (!mesaSeleccionadaAdmin) return;
+        const select = document.getElementById('select-plato-admin');
+        const inputNota = document.getElementById('input-nota-admin');
+        const platoId = parseInt(select.value);
+        const menu = obtenerMenuDB();
+        const platoInfo = menu.find(p => p.id === platoId);
 
-        const pedidos = obtenerPedidos();
-        if (!pedidos[mesaAdminSeleccionada]) {
-            pedidos[mesaAdminSeleccionada] = { id: Date.now(), platos: [] };
+        if (!platoInfo || platoInfo.activo === false) {
+            alert('Este plato se encuentra inhabilitado.');
+            return;
         }
 
-        pedidos[mesaAdminSeleccionada].platos.push({
-            id_plato: platoObj.id,
-            nombre: platoObj.nombre,
-            notas,
-            estado: 'En preparación',
-            timestamp_creacion: Date.now()
+        const pedidos = obtenerPedidos();
+        const ahora = Date.now();
+        if (!pedidos[mesaSeleccionadaAdmin]) {
+            pedidos[mesaSeleccionadaAdmin] = { id: ahora, platos: [] };
+        }
+
+        const idxNuevo = pedidos[mesaSeleccionadaAdmin].platos.length;
+        pedidos[mesaSeleccionadaAdmin].platos.push({
+            uid_instancia: `${pedidos[mesaSeleccionadaAdmin].id}_${mesaSeleccionadaAdmin}_${idxNuevo}_${ahora}`,
+            id_plato: platoInfo.id,
+            nombre: platoInfo.nombre,
+            notas: inputNota.value.trim(),
+            estado: 'En Cola',
+            timestamp_creacion: ahora,
+            inicio_coccion: null,
+            alerta_sala: false
         });
 
-        document.getElementById('admin-input-notas').value = '';
+        inputNota.value = '';
         guardarTodosLosPedidos(pedidos);
-        renderizarPlatosModalMesa();
-        sincronizarTodoAdmin();
+        renderizarTodoAdmin();
     };
 
-    window.adminEditarNotaPlato = (idx) => {
+    window.forzarEntregaPlatoAdmin = (mesaId, idx) => {
         const pedidos = obtenerPedidos();
-        const item = pedidos[mesaAdminSeleccionada]?.platos[idx];
-        if (!item) return;
-
-        const nuevaNota = prompt(`Editar nota para ${item.nombre}:`, item.notas || '');
-        if (nuevaNota !== null) {
-            item.notas = nuevaNota.trim();
-            guardarTodosLosPedidos(pedidos);
-            renderizarPlatosModalMesa();
-        }
-    };
-
-    window.adminForzarEstadoPlato = (idx, nuevoEstado) => {
-        const pedidos = obtenerPedidos();
-        const item = pedidos[mesaAdminSeleccionada]?.platos[idx];
-        if (!item) return;
-
-        item.estado = nuevoEstado;
-        item.alerta_sala = false;
-        item.inicio_pausa = null;
+        if (!pedidos[mesaId] || !pedidos[mesaId].platos[idx]) return;
+        const plato = pedidos[mesaId].platos[idx];
+        plato.estado = 'Entregado';
+        plato.alerta_sala = false;
+        plato.fin_coccion = plato.fin_coccion || Date.now();
         guardarTodosLosPedidos(pedidos);
-        renderizarPlatosModalMesa();
-        sincronizarTodoAdmin();
+        renderizarTodoAdmin();
     };
 
-    window.adminEliminarPlatoMesa = (idx) => {
+    window.editarNotaPlatoAdmin = (mesaId, idx) => {
         const pedidos = obtenerPedidos();
-        const item = pedidos[mesaAdminSeleccionada]?.platos[idx];
-        if (!item) return;
-
-        if (confirm(`¿Cancelar y eliminar "${item.nombre}" de la Mesa 0${mesaAdminSeleccionada}?`)) {
-            pedidos[mesaAdminSeleccionada].platos.splice(idx, 1);
-            if (pedidos[mesaAdminSeleccionada].platos.length === 0) {
-                pedidos[mesaAdminSeleccionada] = null;
-            }
+        if (!pedidos[mesaId] || !pedidos[mesaId].platos[idx]) return;
+        const actual = pedidos[mesaId].platos[idx].notas || '';
+        const nueva = prompt('Editar especificación o nota del plato:', actual);
+        if (nueva !== null) {
+            pedidos[mesaId].platos[idx].notas = nueva.trim();
             guardarTodosLosPedidos(pedidos);
-            renderizarPlatosModalMesa();
-            sincronizarTodoAdmin();
+            renderizarTodoAdmin();
         }
     };
 
-    window.adminLiberarMesaCompleta = () => {
-        if (!mesaAdminSeleccionada) return;
-        if (confirm(`¿Estás seguro de vaciar y liberar por completo la Mesa 0${mesaAdminSeleccionada}?`)) {
-            actualizarPedidoMesa(mesaAdminSeleccionada, null);
-            cerrarModalOrdenAdmin();
-            sincronizarTodoAdmin();
+    window.eliminarPlatoMesaAdmin = (mesaId, idx) => {
+        const pedidos = obtenerPedidos();
+        if (!pedidos[mesaId] || !pedidos[mesaId].platos[idx]) return;
+        pedidos[mesaId].platos.splice(idx, 1);
+        if (pedidos[mesaId].platos.length === 0) {
+            pedidos[mesaId] = null;
         }
+        guardarTodosLosPedidos(pedidos);
+        renderizarTodoAdmin();
+    };
+
+    window.liberarMesaDesdeAdmin = () => {
+        if (!mesaSeleccionadaAdmin) return;
+        actualizarPedidoMesa(mesaSeleccionadaAdmin, null);
+        renderizarTodoAdmin();
     };
 
     // =========================================================================
-    // PERSONAL EN LÍNEA (LISTA CON INDICADOR VERDE)
+    // 3. PERSONAL EN TURNO (INDICADORES VERDES EN TIEMPO REAL)
     // =========================================================================
     function renderizarPersonalOnline() {
         const usuarios = obtenerUsuariosDB();
-        const contenedor = document.getElementById('lista-personal-online');
+        const cont = document.getElementById('lista-personal-online');
+        if (!cont) return;
 
-        contenedor.innerHTML = usuarios.map(u => {
-            const estaOnline = u.online === true;
+        cont.innerHTML = usuarios.map(u => {
+            const conectado = u.online === true;
+            const nivelBadge = u.rol === 'cocinero' ? ` · Nivel ANOVA: ${u.nivel.toUpperCase()}` : '';
             return `
-                <div class="online-item">
-                    <div>
-                        <span class="status-dot ${estaOnline ? 'dot-green' : 'dot-gray'}"></span>
-                        <strong>${u.nombre}</strong>
-                        <span style="color:#71717a; font-size:0.85em;">(${u.rol.toUpperCase()})</span>
+                <div class="staff-item">
+                    <div class="staff-left">
+                        <span class="status-dot ${conectado ? 'dot-online' : 'dot-offline'}"></span>
+                        <div>
+                            <div class="staff-name">${u.nombre}</div>
+                            <div class="staff-meta">Rol: ${u.rol.toUpperCase()}${nivelBadge}</div>
+                        </div>
                     </div>
-                    <div style="font-size:0.78em; color:${estaOnline ? '#4ade80' : '#71717a'}; font-weight:600;">
-                        ${estaOnline ? `EN LINEA (${u.ultimaEntrada || 'Activo'})` : 'Desconectado'}
+                    <div class="staff-right">
+                        <span class="staff-state-label ${conectado ? 'text-online' : 'text-offline'}">
+                            ${conectado ? 'EN LÍNEA' : 'DESCONECTADO'}
+                        </span>
+                        <div class="staff-time-sub">
+                            ${u.ultimaEntrada ? `Entrada: ${u.ultimaEntrada}` : 'Sin registro hoy'}
+                        </div>
                     </div>
                 </div>
             `;
@@ -283,377 +344,525 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // GESTIÓN DE PRODUCTOS / CARTA (HABILITAR, INHABILITAR, CREAR, EDITAR, BORRAR)
+    // 4. CRUD DE LA CARTA Y SWITCH DE HABILITAR / INHABILITAR PLATOS
     // =========================================================================
-    function renderizarTablaMenu() {
+    function renderizarMenuAdmin() {
         const menu = obtenerMenuDB();
-        const tbody = document.getElementById('tabla-menu-body');
-        const textoComp = { 1: '1 - Baja', 2: '2 - Media', 3: '3 - Alta' };
+        const cont = document.getElementById('lista-menu-admin');
+        if (!cont) return;
 
-        tbody.innerHTML = menu.map((plato, index) => {
-            const num = (index + 1) < 10 ? `0${index + 1}` : `${index + 1}`;
-            const disponible = plato.activo !== false;
-
+        cont.innerHTML = menu.map((p, idx) => {
+            const num = (idx + 1) < 10 ? `0${idx + 1}` : `${idx + 1}`;
+            const activo = p.activo !== false;
             return `
-                <tr style="opacity: ${disponible ? '1' : '0.55'};">
-                    <td><strong>#${num}</strong></td>
-                    <td><img src="${plato.img}" alt="${plato.nombre}" class="thumb-plato"></td>
-                    <td>
-                        <div><strong>${plato.nombre}</strong></div>
-                        <div style="font-size:0.75em; color:#71717a;">${plato.alergenos}</div>
-                    </td>
-                    <td>${plato.tiempoBase} min</td>
-                    <td><span class="badge-comp comp-${plato.complejidad}">${textoComp[plato.complejidad] || '2 - Media'}</span></td>
-                    <td>
-                        <button class="${disponible ? 'btn-toggle-on' : 'btn-toggle-off'}" onclick="alternarDisponibilidadPlato(${plato.id})">
-                            ${disponible ? 'HABILITADO' : 'INHABILITADO'}
+                <div class="menu-admin-item ${activo ? '' : 'plato-inhabilitado'}">
+                    <div class="menu-item-left">
+                        <img src="${p.img}" alt="${p.nombre}" class="menu-thumb">
+                        <div>
+                            <div class="menu-item-title"><strong>#${num}</strong> ${p.nombre}</div>
+                            <div class="menu-item-sub">Base: ${p.tiempoBase} min · Complejidad ANOVA: Nivel ${p.complejidad}</div>
+                        </div>
+                    </div>
+                    <div class="menu-item-actions">
+                        <button class="btn-switch ${activo ? 'switch-on' : 'switch-off'}" onclick="toggleDisponibilidadPlato(${p.id})">
+                            ${activo ? 'Disponible' : 'Agotado / Inactivo'}
                         </button>
-                    </td>
-                    <td>
-                        <button class="btn-action-edit" onclick="editarPlato(${plato.id})">Editar</button>
-                        <button class="btn-action-del" onclick="eliminarPlato(${plato.id})">Eliminar</button>
-                    </td>
-                </tr>
+                        <button class="btn-secondary btn-xs" onclick="abrirModalPlato(${p.id})">Editar</button>
+                        <button class="btn-danger btn-xs" onclick="eliminarPlatoCRUD(${p.id})">Borrar</button>
+                    </div>
+                </div>
             `;
         }).join('');
     }
 
-    window.alternarDisponibilidadPlato = (id) => {
+    window.toggleDisponibilidadPlato = (id) => {
         const menu = obtenerMenuDB();
-        const index = menu.findIndex(p => p.id === parseInt(id));
-        if (index !== -1) {
-            menu[index].activo = menu[index].activo === false ? true : false;
+        const idx = menu.findIndex(p => p.id === id);
+        if (idx !== -1) {
+            menu[idx].activo = menu[idx].activo === false ? true : false;
             guardarMenuDB(menu);
-            renderizarTablaMenu();
+            renderizarTodoAdmin();
         }
     };
 
-    window.abrirModalPlato = () => {
-        document.getElementById('form-plato').reset();
-        document.getElementById('plato-id').value = '';
-        document.getElementById('modal-plato-titulo').textContent = 'AGREGAR NUEVO PLATO';
-        document.getElementById('modal-plato').classList.remove('hidden');
-    };
+    window.abrirModalPlato = (id = null) => {
+        const modal = document.getElementById('modal-plato');
+        const titulo = document.getElementById('modal-plato-titulo');
+        const idEdit = document.getElementById('plato-id-edit');
 
-    window.editarPlato = (id) => {
-        const plato = obtenerMenuDB().find(p => p.id === parseInt(id));
-        if (!plato) return;
-
-        document.getElementById('plato-id').value = plato.id;
-        document.getElementById('plato-nombre').value = plato.nombre;
-        document.getElementById('plato-tiempo').value = plato.tiempoBase;
-        document.getElementById('plato-complejidad').value = plato.complejidad;
-        document.getElementById('plato-alergenos').value = plato.alergenos;
-        document.getElementById('plato-descripcion').value = plato.descripcion;
-        document.getElementById('plato-img').value = plato.img;
-
-        document.getElementById('modal-plato-titulo').textContent = `EDITAR: ${plato.nombre}`;
-        document.getElementById('modal-plato').classList.remove('hidden');
+        if (id) {
+            const p = obtenerMenuDB().find(x => x.id === id);
+            if (!p) return;
+            titulo.textContent = `Editar Plato: ${p.nombre}`;
+            idEdit.value = p.id;
+            document.getElementById('plato-nombre').value = p.nombre;
+            document.getElementById('plato-tiempo').value = p.tiempoBase;
+            document.getElementById('plato-complejidad').value = p.complejidad;
+            document.getElementById('plato-alergenos').value = p.alergenos || '';
+            document.getElementById('plato-img').value = p.img || '';
+            document.getElementById('plato-desc').value = p.descripcion || '';
+        } else {
+            titulo.textContent = 'Agregar Nuevo Plato a la Carta';
+            idEdit.value = '';
+            document.getElementById('plato-nombre').value = '';
+            document.getElementById('plato-tiempo').value = 15;
+            document.getElementById('plato-complejidad').value = 2;
+            document.getElementById('plato-alergenos').value = 'Libre de alérgenos comunes';
+            document.getElementById('plato-img').value = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800&auto=format&fit=crop';
+            document.getElementById('plato-desc').value = '';
+        }
+        modal.classList.remove('hidden');
     };
 
     window.cerrarModalPlato = () => {
         document.getElementById('modal-plato').classList.add('hidden');
     };
 
-    window.guardarPlatoFormulario = (e) => {
-        e.preventDefault();
+    window.guardarPlatoCRUD = () => {
+        const idEdit = document.getElementById('plato-id-edit').value;
+        const nombre = document.getElementById('plato-nombre').value.trim();
+        const tiempoBase = parseInt(document.getElementById('plato-tiempo').value) || 15;
+        const complejidad = parseInt(document.getElementById('plato-complejidad').value) || 2;
+        const alergenos = document.getElementById('plato-alergenos').value.trim();
+        const img = document.getElementById('plato-img').value.trim();
+        const descripcion = document.getElementById('plato-desc').value.trim();
+
+        if (!nombre) {
+            alert('Por favor ingresa el nombre del plato.');
+            return;
+        }
+
         const menu = obtenerMenuDB();
-        const idInput = document.getElementById('plato-id').value;
-
-        const datos = {
-            nombre: document.getElementById('plato-nombre').value.trim(),
-            tiempoBase: parseInt(document.getElementById('plato-tiempo').value),
-            complejidad: parseInt(document.getElementById('plato-complejidad').value),
-            alergenos: document.getElementById('plato-alergenos').value.trim(),
-            descripcion: document.getElementById('plato-descripcion').value.trim(),
-            img: document.getElementById('plato-img').value.trim()
-        };
-
-        if (idInput) {
-            const idx = menu.findIndex(p => p.id === parseInt(idInput));
-            if (idx !== -1) menu[idx] = { ...menu[idx], ...datos };
+        if (idEdit) {
+            const idx = menu.findIndex(p => p.id === parseInt(idEdit));
+            if (idx !== -1) {
+                menu[idx] = { ...menu[idx], nombre, tiempoBase, complejidad, alergenos, img, descripcion };
+            }
         } else {
-            const maxId = menu.reduce((max, p) => (p.id > max ? p.id : max), 0);
-            menu.push({ id: maxId + 1, activo: true, ...datos });
+            const maxId = menu.reduce((max, p) => Math.max(max, p.id), 0);
+            menu.push({
+                id: maxId + 1,
+                nombre,
+                descripcion,
+                alergenos,
+                tiempoBase,
+                complejidad,
+                activo: true,
+                img: img || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800&auto=format&fit=crop'
+            });
         }
 
         guardarMenuDB(menu);
         cerrarModalPlato();
-        renderizarTablaMenu();
+        renderizarTodoAdmin();
     };
 
-    window.eliminarPlato = (id) => {
-        const menu = obtenerMenuDB();
-        const plato = menu.find(p => p.id === parseInt(id));
-        if (!plato) return;
-
-        if (confirm(`¿Eliminar definitivamente el plato "${plato.nombre}" del menú?`)) {
-            guardarMenuDB(menu.filter(p => p.id !== parseInt(id)));
-            renderizarTablaMenu();
-        }
+    window.eliminarPlatoCRUD = (id) => {
+        if (!confirm('¿Seguro que deseas eliminar este plato de la carta?')) return;
+        const menu = obtenerMenuDB().filter(p => p.id !== id);
+        guardarMenuDB(menu);
+        renderizarTodoAdmin();
     };
 
-    window.restaurarDatosFabrica = () => {
-        if (confirm('¿Restaurar los 12 platos originales de fábrica?')) {
-            restaurarMenuOriginalDB();
-            renderizarTablaMenu();
-        }
+    window.restaurarCartaOriginalConfirm = () => {
+        if (!confirm('¿Restaurar los 12 platos originales de fábrica?')) return;
+        restaurarMenuOriginalDB();
+        renderizarTodoAdmin();
     };
 
     // =========================================================================
-    // INTERFAZ 2: GESTIÓN DE EMPLEADOS, ESTATUS DE CHEFS Y ANALÍTICAS
+    // 5. INTERFAZ 2: ANALÍTICA, KPIs, RENDIMIENTO DE CHEFS E HISTORIAL CON RESEÑAS
     // =========================================================================
-    function renderizarEmpleadosYAnaliticas() {
-        const usuarios = obtenerUsuariosDB();
+    function renderizarAnalitica() {
         const historial = obtenerHistorialDB();
-        const logsSesiones = obtenerLogSesiones();
+        const resenas = (typeof obtenerResenasDB === 'function') ? obtenerResenasDB() : [];
+        const usuarios = obtenerUsuariosDB();
 
-        // 1. Tabla de Empleados con cambio directo de estatus para los Chefs
-        const tbodyEmp = document.getElementById('tabla-empleados-body');
-        tbodyEmp.innerHTML = usuarios.map(u => {
-            const esChef = u.rol === 'cocinero';
-            const selectorNivel = esChef ? `
-                <select class="select-estatus-inline" onchange="cambiarEstatusChefDirecto(${u.id}, this.value)">
-                    <option value="principiante" ${u.nivel === 'principiante' ? 'selected' : ''}>Principiante / Novato</option>
-                    <option value="intermedio" ${u.nivel === 'intermedio' ? 'selected' : ''}>Intermedio</option>
-                    <option value="experto" ${u.nivel === 'experto' ? 'selected' : ''}>Experto</option>
-                </select>
-            ` : `<span style="color:#71717a;">No aplica</span>`;
+        // 1. KPIs Superiores
+        const totalPedidos = historial.length;
+        document.getElementById('kpi-total-pedidos').textContent = totalPedidos;
 
-            return `
-                <tr>
-                    <td>
-                        <span class="status-dot ${u.online ? 'dot-green' : 'dot-gray'}"></span>
-                        ${u.online ? 'Conectado' : 'Inactivo'}
-                    </td>
-                    <td>
-                        <strong>${u.nombre}</strong>
-                        <div style="font-size:0.75em; color:#71717a;">Usuario: ${u.usuario}</div>
-                    </td>
-                    <td>${u.rol.toUpperCase()}</td>
-                    <td>${selectorNivel}</td>
-                    <td style="font-size:0.78em; color:#a1a1aa;">
-                        Entrada: ${u.ultimaEntrada || '--:--'}<br>
-                        Salida: ${u.ultimaSalida || '--:--'}
-                    </td>
-                    <td>
-                        <button class="btn-action-edit" onclick="editarEmpleado(${u.id})">Editar</button>
-                        ${u.usuario !== 'admin' ? `<button class="btn-action-del" onclick="eliminarEmpleado(${u.id})">Borrar</button>` : ''}
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        if (totalPedidos > 0) {
+            const sumaReal = historial.reduce((acc, r) => acc + (Number(r.tiempoRealMin) || 0), 0);
+            const sumaEta = historial.reduce((acc, r) => acc + (Number(r.etaMin) || 0), 0);
+            const promReal = (sumaReal / totalPedidos).toFixed(1);
+            const promEta = (sumaEta / totalPedidos).toFixed(1);
 
-        // 2. KPIs Generales del Historial
-        const servidos = historial.filter(h => h.estadoFinal === 'Servido');
-        const incidencias = historial.filter(h => h.tuvoAlerta || h.estadoFinal !== 'Servido').length;
-        const promReal = servidos.length > 0
-            ? Math.round(servidos.reduce((acc, h) => acc + h.tiempoRealMin, 0) / servidos.length)
-            : 0;
-        const aTiempo = servidos.filter(h => h.tiempoRealMin <= h.etaMin + 2).length;
-        const pctEficiencia = servidos.length > 0 ? Math.round((aTiempo / servidos.length) * 100) : 100;
+            const dentroEta = historial.filter(r => (Number(r.tiempoRealMin) || 0) <= (Number(r.etaMin) || 0) + 5).length;
+            const pctEficiencia = Math.round((dentroEta / totalPedidos) * 100);
 
-        document.getElementById('kpi-hist-total').textContent = historial.length;
-        document.getElementById('kpi-hist-promedio').textContent = `${promReal} min`;
-        document.getElementById('kpi-hist-eficiencia').textContent = `${pctEficiencia}%`;
-        document.getElementById('kpi-hist-incidencias').textContent = incidencias;
-
-        // 3. Tabla de Rendimiento por Chef
-        const chefs = usuarios.filter(u => u.rol === 'cocinero');
-        const tbodyRendimiento = document.getElementById('tabla-rendimiento-chefs');
-        tbodyRendimiento.innerHTML = chefs.map(c => {
-            const platosChef = servidos.filter(h => h.chef === c.nombre);
-            const alertasChef = historial.filter(h => h.chef === c.nombre && h.tuvoAlerta).length;
-            const pEst = platosChef.length > 0 ? Math.round(platosChef.reduce((a, b) => a + b.etaMin, 0) / platosChef.length) : 0;
-            const pReal = platosChef.length > 0 ? Math.round(platosChef.reduce((a, b) => a + b.tiempoRealMin, 0) / platosChef.length) : 0;
-
-            return `
-                <tr>
-                    <td><strong>${c.nombre}</strong></td>
-                    <td><span class="badge-comp comp-2">${(c.nivel || 'intermedio').toUpperCase()}</span></td>
-                    <td>${platosChef.length} platos</td>
-                    <td>${pEst} min</td>
-                    <td style="font-weight:700; color:${pReal > pEst ? '#f87171' : '#4ade80'};">${pReal} min</td>
-                    <td>${alertasChef}</td>
-                </tr>
-            `;
-        }).join('');
-
-        // 4. Tabla de Historial de Platos y Tiempos de Entrega
-        const tbodyHist = document.getElementById('tabla-historial-body');
-        if (historial.length === 0) {
-            tbodyHist.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#71717a; padding:18px;">Aún no hay platos finalizados. Sirve un plato desde Cocina o pulsa "Generar Datos de Prueba (ANOVA)".</td></tr>`;
+            document.getElementById('kpi-tiempo-promedio').textContent = `${promReal} min`;
+            document.getElementById('kpi-comparativa-eta').textContent = `ETA esperado prom: ${promEta} min`;
+            document.getElementById('kpi-eficiencia').textContent = `${pctEficiencia}%`;
         } else {
-            tbodyHist.innerHTML = historial.map(h => {
-                const dif = h.tiempoRealMin - h.etaMin;
-                const signo = dif > 0 ? `+${dif} min` : `${dif} min`;
-                const colorDif = dif > 3 ? '#f87171' : '#4ade80';
+            document.getElementById('kpi-tiempo-promedio').textContent = '0 min';
+            document.getElementById('kpi-comparativa-eta').textContent = 'Sin datos registrados';
+            document.getElementById('kpi-eficiencia').textContent = '100%';
+        }
+
+        // Calificación promedio de clientes
+        const calificacionesValidas = historial.filter(h => h.estrellas).map(h => Number(h.estrellas));
+        const listaEstrellas = calificacionesValidas.length > 0
+            ? calificacionesValidas
+            : resenas.map(r => Number(r.estrellas) || 5);
+
+        if (listaEstrellas.length > 0) {
+            const promEstrellas = (listaEstrellas.reduce((a, b) => a + b, 0) / listaEstrellas.length).toFixed(1);
+            document.getElementById('kpi-calificacion-media').textContent = `★ ${promEstrellas}`;
+            document.getElementById('kpi-total-resenas').textContent = `Basado en ${listaEstrellas.length} calificación(es)`;
+        } else {
+            document.getElementById('kpi-calificacion-media').textContent = '★ -';
+            document.getElementById('kpi-total-resenas').textContent = 'Sin reseñas aún';
+        }
+
+        // 2. Tabla de Rendimiento por Chef
+        const chefs = usuarios.filter(u => u.rol === 'cocinero');
+        const tbodyChefs = document.getElementById('tabla-rendimiento-chefs');
+        if (tbodyChefs) {
+            tbodyChefs.innerHTML = chefs.map(c => {
+                const platosChef = historial.filter(h => h.chef === c.nombre);
+                const cant = platosChef.length;
+                if (cant === 0) {
+                    return `
+                        <tr>
+                            <td><strong>${c.nombre}</strong></td>
+                            <td><span class="nivel-pill">${(c.nivel || 'experto').toUpperCase()}</span></td>
+                            <td>0</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>0</td>
+                            <td>100%</td>
+                        </tr>
+                    `;
+                }
+                const etaProm = (platosChef.reduce((a, b) => a + (Number(b.etaMin) || 0), 0) / cant).toFixed(1);
+                const realProm = (platosChef.reduce((a, b) => a + (Number(b.tiempoRealMin) || 0), 0) / cant).toFixed(1);
+                const alertas = platosChef.filter(p => p.tuvoAlerta).length;
+                const cumplidos = platosChef.filter(p => (Number(p.tiempoRealMin) || 0) <= (Number(p.etaMin) || 0) + 5).length;
+                const efic = Math.round((cumplidos / cant) * 100);
+
                 return `
                     <tr>
-                        <td style="font-size:0.78em; color:#a1a1aa;">${h.fechaHora}</td>
-                        <td><strong>${h.mesa}</strong></td>
-                        <td>${h.plato}</td>
-                        <td>Nivel ${h.complejidad}</td>
-                        <td>${h.chef} <span style="color:#71717a; font-size:0.8em;">(${h.nivelChef})</span></td>
-                        <td>${h.etaMin} min</td>
-                        <td><strong>${h.tiempoRealMin} min</strong></td>
-                        <td style="color:${colorDif}; font-weight:700;">${h.estadoFinal === 'Servido' ? signo : '--'}</td>
-                        <td><span class="badge-comp ${h.estadoFinal === 'Servido' ? 'comp-1' : 'comp-3'}">${h.estadoFinal}</span></td>
+                        <td><strong>${c.nombre}</strong></td>
+                        <td><span class="nivel-pill">${(c.nivel || 'experto').toUpperCase()}</span></td>
+                        <td>${cant}</td>
+                        <td>${etaProm} min</td>
+                        <td><strong>${realProm} min</strong></td>
+                        <td>${alertas}</td>
+                        <td><span class="efic-badge ${efic >= 80 ? 'efic-alta' : 'efic-baja'}">${efic}%</span></td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // 5. Bitácora de Sesiones
+        // 3. Tabla de Historial Documentado con Calificación (★) y Correo Cliente
+        const tbodyHist = document.getElementById('tabla-historial-body');
+        if (tbodyHist) {
+            if (historial.length === 0) {
+                tbodyHist.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="empty-table-cell">No hay pedidos registrados en el historial todavía.</td>
+                    </tr>
+                `;
+            } else {
+                tbodyHist.innerHTML = historial.map(reg => {
+                    const resenaAsociada = resenas.find(r =>
+                        (reg.uid_instancia && r.uid_plato === reg.uid_instancia) ||
+                        (r.mesa === reg.mesa && r.plato === reg.plato)
+                    );
+
+                    const numEstrellas = reg.estrellas || (resenaAsociada ? resenaAsociada.estrellas : null);
+                    const estrellasHTML = numEstrellas
+                        ? `<span class="stars-gold">${'★'.repeat(numEstrellas)}${'☆'.repeat(5 - numEstrellas)}</span>`
+                        : '';
+
+                    const correoCliente = (reg.emailCliente !== undefined && reg.emailCliente !== '')
+                        ? reg.emailCliente
+                        : (resenaAsociada && resenaAsociada.email ? resenaAsociada.email : '');
+
+                    return `
+                        <tr>
+                            <td>${reg.fechaHora || '-'}</td>
+                            <td><strong>${reg.mesa || '-'}</strong></td>
+                            <td>${reg.plato || '-'}</td>
+                            <td>Nivel ${reg.complejidad || 2}</td>
+                            <td>${reg.chef || '-'} <span class="text-muted">(${reg.nivelChef || 'experto'})</span></td>
+                            <td>${reg.etaMin || 0} min</td>
+                            <td><strong>${reg.tiempoRealMin || 0} min</strong></td>
+                            <td>${reg.tuvoAlerta ? '<span class="alerta-si">Sí</span>' : 'No'}</td>
+                            <td>${reg.estadoFinal || 'Servido'}</td>
+                            <td>${estrellasHTML}</td>
+                            <td>${correoCliente}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        // 4. Bitácora de Sesiones
+        const logs = obtenerLogSesiones();
         const tbodySesiones = document.getElementById('tabla-sesiones-body');
-        tbodySesiones.innerHTML = logsSesiones.length === 0
-            ? `<tr><td colspan="4" style="text-align:center; color:#71717a;">Sin registros de sesión.</td></tr>`
-            : logsSesiones.slice(0, 25).map(l => `
-                <tr>
-                    <td style="font-size:0.8em; color:#a1a1aa;">${l.fechaHora}</td>
-                    <td><strong>${l.nombre}</strong></td>
-                    <td>${l.rol.toUpperCase()}</td>
-                    <td style="color:${l.accion.includes('Inicio') ? '#4ade80' : '#facc15'}; font-weight:600;">${l.accion}</td>
-                </tr>
-            `).join('');
+        if (tbodySesiones) {
+            if (logs.length === 0) {
+                tbodySesiones.innerHTML = `<tr><td colspan="4" class="empty-table-cell">Sin eventos de sesión registrados.</td></tr>`;
+            } else {
+                tbodySesiones.innerHTML = logs.slice(0, 30).map(l => `
+                    <tr>
+                        <td>${l.fechaHora}</td>
+                        <td><strong>${l.nombre}</strong></td>
+                        <td>${l.rol.toUpperCase()}</td>
+                        <td>${l.accion}</td>
+                    </tr>
+                `).join('');
+            }
+        }
     }
 
-    // Cambiar estatus del chef directamente desde el selector de la tabla
-    window.cambiarEstatusChefDirecto = (id, nuevoNivel) => {
+    // =========================================================================
+    // 6. CRUD DE USUARIOS Y CAMBIO EN CALIENTE DE NIVEL ANOVA DEL CHEF
+    // =========================================================================
+    function renderizarUsuariosCRUD() {
         const usuarios = obtenerUsuariosDB();
-        const idx = usuarios.findIndex(u => u.id === parseInt(id));
+        const cont = document.getElementById('lista-usuarios-crud');
+        if (!cont) return;
+
+        cont.innerHTML = usuarios.map(u => `
+            <div class="user-crud-item">
+                <div>
+                    <div class="user-crud-name"><strong>${u.nombre}</strong> <span class="text-muted">(@${u.usuario})</span></div>
+                    <div class="user-crud-sub">Rol: ${u.rol.toUpperCase()}</div>
+                </div>
+                <div class="user-crud-actions">
+                    ${u.rol === 'cocinero' ? `
+                        <select class="admin-input select-xs" onchange="cambiarNivelChefRapido(${u.id}, this.value)">
+                            <option value="principiante" ${u.nivel === 'principiante' ? 'selected' : ''}>Principiante / Novato</option>
+                            <option value="intermedio" ${u.nivel === 'intermedio' ? 'selected' : ''}>Intermedio</option>
+                            <option value="experto" ${u.nivel === 'experto' ? 'selected' : ''}>Experto</option>
+                        </select>
+                    ` : ''}
+                    <button class="btn-secondary btn-xs" onclick="abrirModalUsuario(${u.id})">Editar</button>
+                    ${u.usuario !== 'admin' ? `<button class="btn-danger btn-xs" onclick="eliminarUsuarioCRUD(${u.id})">Borrar</button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.cambiarNivelChefRapido = (id, nuevoNivel) => {
+        const usuarios = obtenerUsuariosDB();
+        const idx = usuarios.findIndex(u => u.id === id);
         if (idx !== -1) {
             usuarios[idx].nivel = nuevoNivel;
             guardarUsuariosDB(usuarios);
-            renderizarEmpleadosYAnaliticas();
+            renderizarTodoAdmin();
         }
     };
 
-    // CRUD Empleados
-    window.mostrarOcultarNivelChef = () => {
-        const rol = document.getElementById('emp-rol').value;
-        document.getElementById('grupo-nivel-chef').style.display = rol === 'cocinero' ? 'flex' : 'none';
-    };
-
-    window.abrirModalEmpleado = () => {
-        document.getElementById('form-empleado').reset();
-        document.getElementById('emp-id').value = '';
-        document.getElementById('modal-empleado-titulo').textContent = 'NUEVO EMPLEADO';
-        mostrarOcultarNivelChef();
-        document.getElementById('modal-empleado').classList.remove('hidden');
-    };
-
-    window.editarEmpleado = (id) => {
-        const u = obtenerUsuariosDB().find(item => item.id === parseInt(id));
-        if (!u) return;
-
-        document.getElementById('emp-id').value = u.id;
-        document.getElementById('emp-nombre').value = u.nombre;
-        document.getElementById('emp-usuario').value = u.usuario;
-        document.getElementById('emp-clave').value = u.clave;
-        document.getElementById('emp-rol').value = u.rol;
-        document.getElementById('emp-nivel').value = u.nivel !== 'n/a' ? u.nivel : 'intermedio';
-
-        mostrarOcultarNivelChef();
-        document.getElementById('modal-empleado-titulo').textContent = `EDITAR: ${u.nombre}`;
-        document.getElementById('modal-empleado').classList.remove('hidden');
-    };
-
-    window.cerrarModalEmpleado = () => {
-        document.getElementById('modal-empleado').classList.add('hidden');
-    };
-
-    window.guardarEmpleadoFormulario = (e) => {
-        e.preventDefault();
-        const usuarios = obtenerUsuariosDB();
-        const idInput = document.getElementById('emp-id').value;
-        const rol = document.getElementById('emp-rol').value;
-
-        const datos = {
-            nombre: document.getElementById('emp-nombre').value.trim(),
-            usuario: document.getElementById('emp-usuario').value.trim(),
-            clave: document.getElementById('emp-clave').value.trim(),
-            rol,
-            nivel: rol === 'cocinero' ? document.getElementById('emp-nivel').value : 'n/a',
-            rendimiento: 1.0
-        };
-
-        if (idInput) {
-            const idx = usuarios.findIndex(u => u.id === parseInt(idInput));
-            if (idx !== -1) usuarios[idx] = { ...usuarios[idx], ...datos };
+    window.actualizarVisibilidadNivelChef = () => {
+        const rol = document.getElementById('user-rol').value;
+        const grupo = document.getElementById('grupo-nivel-chef');
+        if (rol === 'cocinero') {
+            grupo.classList.remove('hidden');
         } else {
-            const maxId = usuarios.reduce((max, u) => (u.id > max ? u.id : max), 0);
-            usuarios.push({ id: maxId + 1, online: false, ultimaEntrada: null, ultimaSalida: null, ...datos });
-        }
-
-        guardarUsuariosDB(usuarios);
-        cerrarModalEmpleado();
-        sincronizarTodoAdmin();
-    };
-
-    window.eliminarEmpleado = (id) => {
-        const usuarios = obtenerUsuariosDB();
-        const u = usuarios.find(item => item.id === parseInt(id));
-        if (!u) return;
-
-        if (confirm(`¿Eliminar al empleado "${u.nombre}" del sistema?`)) {
-            guardarUsuariosDB(usuarios.filter(item => item.id !== parseInt(id)));
-            sincronizarTodoAdmin();
+            grupo.classList.add('hidden');
         }
     };
 
-    // Generar datos de prueba ANOVA para sustentar y sacar conclusiones
-    window.simularDatosANOVA = () => {
-        const muestras = [
-            { mesa: 'Mesa 01', plato: 'Ensalada César con pollo', complejidad: 1, chef: 'Chef Lucas', nivelChef: 'principiante', etaMin: 12, tiempoRealMin: 13, tuvoAlerta: false, estadoFinal: 'Servido' },
-            { mesa: 'Mesa 02', plato: 'Pasta alfredo con camarones', complejidad: 2, chef: 'Chef Andrés', nivelChef: 'intermedio', etaMin: 18, tiempoRealMin: 17, tuvoAlerta: false, estadoFinal: 'Servido' },
-            { mesa: 'Mesa 03', plato: 'Risotto de hongos', complejidad: 3, chef: 'Chef Mateo', nivelChef: 'experto', etaMin: 20, tiempoRealMin: 19, tuvoAlerta: false, estadoFinal: 'Servido' },
-            { mesa: 'Mesa 04', plato: 'Risotto de hongos', complejidad: 3, chef: 'Chef Lucas', nivelChef: 'principiante', etaMin: 48, tiempoRealMin: 52, tuvoAlerta: true, estadoFinal: 'Servido' },
-            { mesa: 'Mesa 05', plato: 'Ensalada César con pollo', complejidad: 1, chef: 'Chef Mateo', nivelChef: 'experto', etaMin: 20, tiempoRealMin: 18, tuvoAlerta: false, estadoFinal: 'Servido' },
-            { mesa: 'Mesa 02', plato: 'Pasta alfredo con camarones', complejidad: 2, chef: 'Chef Mateo', nivelChef: 'experto', etaMin: 24, tiempoRealMin: 22, tuvoAlerta: false, estadoFinal: 'Servido' }
-        ];
-        muestras.forEach(m => registrarPlatoEnHistorial(m));
-        sincronizarTodoAdmin();
+    window.abrirModalUsuario = (id = null) => {
+        const modal = document.getElementById('modal-usuario');
+        const idEdit = document.getElementById('usuario-id-edit');
+        const titulo = document.getElementById('modal-usuario-titulo');
+
+        if (id) {
+            const u = obtenerUsuariosDB().find(x => x.id === id);
+            if (!u) return;
+            titulo.textContent = `Editar Empleado: ${u.nombre}`;
+            idEdit.value = u.id;
+            document.getElementById('user-nombre').value = u.nombre;
+            document.getElementById('user-login').value = u.usuario;
+            document.getElementById('user-clave').value = u.clave;
+            document.getElementById('user-rol').value = u.rol;
+            document.getElementById('user-nivel').value = u.nivel !== 'n/a' ? u.nivel : 'intermedio';
+        } else {
+            titulo.textContent = 'Nuevo Empleado';
+            idEdit.value = '';
+            document.getElementById('user-nombre').value = '';
+            document.getElementById('user-login').value = '';
+            document.getElementById('user-clave').value = '1234';
+            document.getElementById('user-rol').value = 'cocinero';
+            document.getElementById('user-nivel').value = 'intermedio';
+        }
+        actualizarVisibilidadNivelChef();
+        modal.classList.remove('hidden');
+    };
+
+    window.cerrarModalUsuario = () => {
+        document.getElementById('modal-usuario').classList.add('hidden');
+    };
+
+    window.guardarUsuarioCRUD = () => {
+        const idEdit = document.getElementById('usuario-id-edit').value;
+        const nombre = document.getElementById('user-nombre').value.trim();
+        const usuario = document.getElementById('user-login').value.trim();
+        const clave = document.getElementById('user-clave').value.trim();
+        const rol = document.getElementById('user-rol').value;
+        const nivel = rol === 'cocinero' ? document.getElementById('user-nivel').value : 'n/a';
+
+        if (!nombre || !usuario || !clave) {
+            alert('Completa nombre, usuario y contraseña.');
+            return;
+        }
+
+        const lista = obtenerUsuariosDB();
+        if (idEdit) {
+            const idx = lista.findIndex(u => u.id === parseInt(idEdit));
+            if (idx !== -1) {
+                lista[idx] = { ...lista[idx], nombre, usuario, clave, rol, nivel };
+            }
+        } else {
+            const maxId = lista.reduce((max, u) => Math.max(max, u.id), 0);
+            lista.push({
+                id: maxId + 1,
+                usuario,
+                clave,
+                rol,
+                nombre,
+                nivel,
+                rendimiento: 1.0,
+                online: false,
+                ultimaEntrada: null,
+                ultimaSalida: null
+            });
+        }
+
+        guardarUsuariosDB(lista);
+        cerrarModalUsuario();
+        renderizarTodoAdmin();
+    };
+
+    window.eliminarUsuarioCRUD = (id) => {
+        if (!confirm('¿Eliminar este empleado del sistema?')) return;
+        const lista = obtenerUsuariosDB().filter(u => u.id !== id);
+        guardarUsuariosDB(lista);
+        renderizarTodoAdmin();
+    };
+
+    // =========================================================================
+    // 7. SIMULACIÓN ANOVA Y EXPORTACIÓN EXCEL (.CSV) CON CALIFICACIÓN Y CORREO
+    // =========================================================================
+    window.simularMuestraANOVA = () => {
+        const menu = obtenerMenuDB();
+        const chefs = obtenerUsuariosDB().filter(u => u.rol === 'cocinero');
+        if (chefs.length === 0 || menu.length === 0) return;
+
+        for (let i = 0; i < 6; i++) {
+            const plato = menu[Math.floor(Math.random() * menu.length)];
+            const chef = chefs[Math.floor(Math.random() * chefs.length)];
+            const eta = calcularETAChef(plato.id, chef.nivel, 1.0);
+            const variacion = Math.floor(Math.random() * 7) - 2;
+            const real = Math.max(4, eta + variacion);
+
+            registrarPlatoEnHistorial({
+                uid_instancia: `sim_${Date.now()}_${i}`,
+                mesa: `Mesa 0${(i % 5) + 1}`,
+                plato: plato.nombre,
+                complejidad: plato.complejidad,
+                chef: chef.nombre,
+                nivelChef: chef.nivel,
+                etaMin: eta,
+                tiempoRealMin: real,
+                tuvoAlerta: real - eta > 5,
+                estadoFinal: 'Servido',
+                estrellas: null,
+                emailCliente: ''
+            });
+        }
+        renderizarTodoAdmin();
+    };
+
+    window.limpiarHistorialConfirm = () => {
+        if (!confirm('¿Seguro que deseas borrar todo el historial estadístico de pedidos?')) return;
+        limpiarHistorialDB();
+        renderizarTodoAdmin();
     };
 
     window.exportarHistorialCSV = () => {
         const historial = obtenerHistorialDB();
-        if (historial.length === 0) {
+        const resenas = (typeof obtenerResenasDB === 'function') ? obtenerResenasDB() : [];
+
+        if (!historial || historial.length === 0) {
             alert('No hay datos en el historial para exportar.');
             return;
         }
-        const cabeceras = ['Fecha_Hora', 'Mesa', 'Plato', 'Complejidad', 'Chef', 'Nivel_Chef', 'ETA_Min', 'Tiempo_Real_Min', 'Estado'];
-        const filas = historial.map(h => [
-            `"${h.fechaHora}"`, `"${h.mesa}"`, `"${h.plato}"`, h.complejidad, `"${h.chef}"`, `"${h.nivelChef}"`, h.etaMin, h.tiempoRealMin, `"${h.estadoFinal}"`
-        ].join(','));
 
-        const csvContent = 'data:text/csv;charset=utf-8,' + [cabeceras.join(','), ...filas].join('\n');
+        const cabeceras = [
+            'Fecha_Hora',
+            'Mesa',
+            'Plato',
+            'Complejidad_ANOVA',
+            'Chef',
+            'Nivel_Chef',
+            'ETA_Estimado_Min',
+            'Tiempo_Real_Min',
+            'Tuvo_Alerta',
+            'Estado_Final',
+            'Calificacion_Estrellas',
+            'Correo_Cliente'
+        ];
+
+        const filas = historial.map(reg => {
+            const resenaAsociada = resenas.find(r =>
+                (reg.uid_instancia && r.uid_plato === reg.uid_instancia) ||
+                (r.mesa === reg.mesa && r.plato === reg.plato)
+            );
+            const estrellas = reg.estrellas || (resenaAsociada ? resenaAsociada.estrellas : '');
+            const correo = (reg.emailCliente !== undefined && reg.emailCliente !== '')
+                ? reg.emailCliente
+                : (resenaAsociada && resenaAsociada.email ? resenaAsociada.email : '');
+
+            return [
+                `"${reg.fechaHora || ''}"`,
+                `"${reg.mesa || ''}"`,
+                `"${(reg.plato || '').replace(/"/g, '""')}"`,
+                reg.complejidad || 2,
+                `"${reg.chef || ''}"`,
+                `"${reg.nivelChef || ''}"`,
+                reg.etaMin || 0,
+                reg.tiempoRealMin || 0,
+                reg.tuvoAlerta ? 'SI' : 'NO',
+                `"${reg.estadoFinal || 'Servido'}"`,
+                estrellas,
+                `"${correo}"`
+            ].join(',');
+        });
+
+        const contenidoCSV = '\uFEFF' + [cabeceras.join(','), ...filas].join('\n');
+        const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
         const link = document.createElement('a');
-        link.setAttribute('href', encodeURI(csvContent));
+        link.href = url;
         link.setAttribute('download', 'reporte_tiempos_gastroflow.csv');
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     };
 
-    window.borrarHistorialConfirmado = () => {
-        if (confirm('¿Deseas limpiar todo el historial de pedidos?')) {
-            limpiarHistorialDB();
-            sincronizarTodoAdmin();
-        }
-    };
-
-    function sincronizarTodoAdmin() {
-        renderizarMesasYAlertasLive();
+    function renderizarTodoAdmin() {
+        renderizarMonitorAlertas();
+        renderizarMapaMesasAdmin();
+        renderizarEditorComandaAdmin();
         renderizarPersonalOnline();
-        renderizarTablaMenu();
-        renderizarEmpleadosYAnaliticas();
+        renderizarMenuAdmin();
+        renderizarAnalitica();
+        renderizarUsuariosCRUD();
     }
 
-    window.addEventListener('storage', () => sincronizarTodoAdmin());
+    window.addEventListener('storage', renderizarTodoAdmin);
+    window.addEventListener('gastroflow:update', renderizarTodoAdmin);
+
     if (typeof canalGastroFlow !== 'undefined' && canalGastroFlow) {
-        canalGastroFlow.onmessage = () => sincronizarTodoAdmin();
+        canalGastroFlow.onmessage = renderizarTodoAdmin;
     }
 
-    sincronizarTodoAdmin();
+    renderizarTodoAdmin();
 });
